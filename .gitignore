@@ -1,3 +1,7 @@
+# Exclusion from project files
+fuzzers_generados/
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -1,0 +1,34 @@
+package {{ paquete_fuzzer }};
+
+import com.code_intelligence.jazzer.api.FuzzedDataProvider;
+import {{ paquete_target }}.{{ clase_target }};
+{% if importaciones_adicionales %}
+// Importaciones adicionales generadas dinámicamente
+{% for import_path in importaciones_adicionales %}
+import {{ import_path }};
+{% endfor %}
+{% endif %}
+
+/**
+ * Fuzzer generado automáticamente para la clase {{ clase_target }}.
+ * Objetivo: método {{ metodo_target }}.
+ */
+public class {{ clase_fuzzer }} {
+    public static void fuzzerTestOneInput(FuzzedDataProvider dataProvider) {
+        // --- Lógica del Test ---
+        // Esta es la sección que más probablemente personalizarás.
+        // Aquí usamos la forma más simple: consumir datos como un String.
+        String fuzzedString = dataProvider.consumeRemainingAsString();
+
+        try {
+            // Se asume un método estático. Veremos cómo mejorar esto.
+            {{ clase_target }}.{{ metodo_target }}(fuzzedString);
+
+        } catch (Exception e) {
+            // Es buena práctica no silenciar todas las excepciones.
+            // Si esperas una excepción específica (ej. IllegalArgumentException),
+            // atrápala explícitamente y deja que las inesperadas fallen.
+            // Un fallo (crash) es un resultado valioso en fuzzing.
+        }
+    }
+}
