@@ -18,7 +18,8 @@ if __name__ == "__main__":
     target_class: VulnerableCode
     target_method: processInput
     is_static: True
-    params: [{'tipo': 'byte', 'nombre': 'data'}]
+    # TODO: Maybe change to a namedtuple
+    params: [{'type': 'byte', 'name': 'data'}]
     line_of_declaration: 14
     """
     
@@ -27,7 +28,8 @@ if __name__ == "__main__":
         "paquete_fuzzer": "com.example",
         "paquete_target": function_info["target_package"],
         "clase_target": function_info["target_class"],
-        "metodo_target": function_info["target_method"]
+        "metodo_target": function_info["target_method"],
+        "params": function_info["params"]
     }
     
     

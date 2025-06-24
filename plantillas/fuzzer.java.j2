@@ -15,14 +15,14 @@ import {{ import_path }};
  */
 public class {{ clase_fuzzer }} {
     public static void fuzzerTestOneInput(FuzzedDataProvider dataProvider) {
-        // --- Lógica del Test ---
-        // Esta es la sección que más probablemente personalizarás.
-        // Aquí usamos la forma más simple: consumir datos como un String.
-        String fuzzedString = dataProvider.consumeRemainingAsString();
+        
+        {% for param in params %}
+        {{ param.type }} {{ param.name }} = dataProvider.{{ param.fuzzing_function }};
+        {% endfor %}
 
         try {
             // Se asume un método estático. Veremos cómo mejorar esto.
-            {{ clase_target }}.{{ metodo_target }}(fuzzedString);
+            {{ clase_target }}.{{ metodo_target }}({{ params | map(attribute='name') | join(', ') }});
 
         } catch (Exception e) {
             // Es buena práctica no silenciar todas las excepciones.
