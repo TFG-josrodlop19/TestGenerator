@@ -1,5 +1,7 @@
 package com.example;
 
+import java.util.ArrayList;
+
 public class VulnerableCode {
     private static final String CONSTANT_STRING = "Test";
 
