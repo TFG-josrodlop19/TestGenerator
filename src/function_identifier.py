@@ -68,8 +68,22 @@ def find_function_call_at_line(code_tree: javalang.tree.CompilationUnit, target_
             if node.position.line <= target_line and line_diff < closest_line_diff:
                 target_call = node
                 closest_line_diff = line_diff
-    
+                print(path)
+        
     return target_call
+
+
+def infer_parent_object_type(tree: javalang.tree.CompilationUnit, variable: str) -> str:
+    """
+    Recorre el AST y devuelve un diccionario de variables declaradas y sus tipos.
+    Ejemplo: {'vulnerable': 'VulnerableCode'}
+    """
+    object_type = None
+    for path, node in tree.filter(javalang.tree.VariableDeclaration):
+        for declarator in node.declarators:
+            if hasattr(declarator, 'name') and declarator.name == variable:
+                object_type = node.type.name if hasattr(node, 'type') else None      
+    return object_type
 
 
 def analyze_java_file_v2(file_path: str, line_num: int, artifact_name: str) -> Optional[Dict[str, Any]]:
@@ -77,71 +91,17 @@ def analyze_java_file_v2(file_path: str, line_num: int, artifact_name: str) -> O
         code_tree = open_java_file(file_path)
         
         imports = get_imports(code_tree)
-        
-        package_name = get_package_name(code_tree)
 
         target_function = find_function_call_at_line(code_tree, line_num, artifact_name)
-        
+        types = infer_parent_object_type(code_tree, target_function.qualifier) if target_function else None
+              
         function_data = {
             # "target_package":  package_name,
-            "target_method": target_function,
-            "imports": imports
+            "target_function": target_function,
+            "imports": imports,
+            "types": types,
         }
-        
         return function_data
-        
     except Exception as e:
         raise Exception(f"Ocurrió un error al analizar el fichero: {e}")
             
-
-
-def analyze_java_file(file_path: str, line_num: int) -> Optional[Dict[str, Any]]:
-    target_function = None
-    container_class = None
-    
-    try:
-        code_tree = open_java_file(file_path)
-        
-        package_name = get_package_name(code_tree)
-        
-        for _, class_node in code_tree.filter(javalang.tree.ClassDeclaration):
-            possible_method = None
-            possible_method_line = -1
-
-            for _, node_method in class_node.filter(javalang.tree.MethodDeclaration):
-                # La posición del nodo es la línea donde empieza la declaración del método
-                start_method_line = node_method.position.line
-
-                # Queremos el último método que empiece ANTES o EN la línea que nos interesa.
-                # Esta es una heurística muy fiable para encontrar el método.
-                if start_method_line <= line_num and start_method_line > possible_method_line:
-                    possible_method = node_method
-                    possible_method_line = start_method_line
-            
-            # Si encontramos un método candidato dentro de esta clase, es nuestro objetivo.
-            if possible_method:
-                target_function = possible_method
-                container_class = class_node
-                break # Salimos del bucle de clases
-
-        if not target_function or not container_class:
-            return None
-
-        # Extraer toda la información relevante del método encontrado
-        is_static = 'static' in target_function.modifiers
-        params = [
-            {"type": param.type.name, "name": param.name}
-            for param in target_function.parameters
-        ]
-
-        return {
-            "target_package": package_name,
-            "target_class": container_class.name,
-            "target_method": target_function.name,
-            "is_static": is_static,
-            "params": params,
-            "line_of_declaration": target_function.position.line,
-        }
-    except Exception as e:
-        print(f"Ocurrió un error al analizar el fichero: {e}")
-        return None
