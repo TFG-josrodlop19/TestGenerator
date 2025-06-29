@@ -48,12 +48,13 @@ def find_function_call_at_line(code_tree: javalang.tree.CompilationUnit, target_
         if hasattr(node, 'position') and node.position and node.member == artifact_name:
             line_diff = abs(node.position.line - target_line)
             if node.position.line <= target_line and line_diff < closest_line_diff:
-                target_call = NodeInfo(path)
+                target_call = NodeInfo(path, node)
                 closest_line_diff = line_diff
     return target_call
 
 
 # TODO: look out the other vulnerable code to see how works a method implementation and call in the same class
+# TODO: currently it does not look in every branch of the node path, only in parents nodes and their children
 def _get_qualifier_type(node_path: List[javalang.tree.Node], qualifier: str) -> bool:
     nodes_already_visited = set()
     for node_not_normalized in reversed(node_path):

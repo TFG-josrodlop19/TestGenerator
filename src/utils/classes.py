@@ -1,3 +1,5 @@
+from javalang.tree import MethodInvocation
+
 class FunctionInfo:
     
     def __init__(self, name: str):
@@ -6,11 +8,15 @@ class FunctionInfo:
         
 class NodeInfo:
     
-    def __init__(self, path):
+    def __init__(self, path, node):
         self.path = path
-        
-    def node(self):
-        return self.path[-1] if self.path else None
-    
+        self.node = node
+
     def qualifier(self):
-        return self.node().expression.qualifier if self.node() else None
+        print(self.node)
+        qualifier = None
+        if isinstance(self.node, MethodInvocation):
+            qualifier = self.node.qualifier
+        else:
+            qualifier = self.node.expression.qualifier
+        return qualifier
