@@ -52,6 +52,33 @@ def find_function_call_at_line(code_tree: javalang.tree.CompilationUnit, target_
                 closest_line_diff = line_diff
     return target_call
 
+def get_node_type(node: javalang.tree.Node, qualifier: str) -> str:
+    if isinstance(node, javalang.tree.MethodDeclaration):
+        for parameter in node.parameters:
+            if parameter.name == qualifier:
+                # TODO: implement a function to properly get the type in case of [] or other complex types
+                return parameter.type.name
+    # Check if the variable is declared as a local variable in a block of statements        
+    if isinstance(node, javalang.tree.LocalVariableDeclaration):
+        for declarator in node.declarators:
+            if declarator.name == qualifier:
+                return declarator.initializer.type.name
+    # Buscar como variable local en cualquier bloque de sentencias
+    # (cuerpos de métodos, bucles for, bloques if, etc.)
+    if hasattr(node, 'statements'):
+        for statement in node.statements:
+            if isinstance(statement, javalang.tree.LocalVariableDeclaration):
+                for declarator in statement.declarators:
+                    if declarator.name == qualifier:
+                        return declarator.initializer.type.name 
+    # Buscar como campo (atributo) de la clase
+    if isinstance(node, javalang.tree.ClassDeclaration):
+        for field in node.body:
+            if isinstance(field, javalang.tree.FieldDeclaration):
+                for declarator in field.declarators:
+                    if declarator.name == qualifier:
+                        return field.type.name
+    return None
 
 # TODO: look out the other vulnerable code to see how works a method implementation and call in the same class
 # TODO: currently it does not look in every branch of the node path, only in parents nodes and their children
@@ -60,35 +87,12 @@ def _get_qualifier_type(node_path: List[javalang.tree.Node], qualifier: str) -> 
     for node_not_normalized in reversed(node_path):
         # Normalize nodes into a list if it's not already
         nodes_to_check = node_not_normalized if isinstance(node_not_normalized, list) else [node_not_normalized]
-        
         for node in filter(lambda n: n not in nodes_already_visited, nodes_to_check):        
             # Check if the variable is declared as a parameter in a method
-            if isinstance(node, javalang.tree.MethodDeclaration):
-                for parameter in node.parameters:
-                    if parameter.name == qualifier:
-                        # TODO: implement a function to properly get the type in case of [] or other complex types
-                        return parameter.type.name
-            # Check if the variable is declared as a local variable in a block of statements        
-            if isinstance(node, javalang.tree.LocalVariableDeclaration):
-                for declarator in node.declarators:
-                    if declarator.name == qualifier:
-                        return declarator.initializer.type.name
-            # Buscar como variable local en cualquier bloque de sentencias
-            # (cuerpos de métodos, bucles for, bloques if, etc.)
-            if hasattr(node, 'statements'):
-                for statement in node.statements:
-                    if isinstance(statement, javalang.tree.LocalVariableDeclaration):
-                        for declarator in statement.declarators:
-                            if declarator.name == qualifier:
-                                return declarator.initializer.type.name 
-            # Buscar como campo (atributo) de la clase
-            if isinstance(node, javalang.tree.ClassDeclaration):
-                for field in node.body:
-                    if isinstance(field, javalang.tree.FieldDeclaration):
-                        for declarator in field.declarators:
-                            if declarator.name == qualifier:
-                                return field.type.name
-        nodes_already_visited.add(node)
+            object_type = get_node_type(node, qualifier)
+            if object_type:
+                return object_type
+            nodes_already_visited.add(node)
     return None        
 
 
@@ -102,10 +106,9 @@ def infer_parent_object_type(node_info: NodeInfo, imports: Dict[str, str]) -> st
     
     is_static = False
     
-    function_node = node_info.node()
-    path = node_info.path
+    function_node = node_info.node
     # Qualifier is the name of the object from which the method is called
-    qualifier_type = _get_qualifier_type(path, qualifier)
+    qualifier_type = _get_qualifier_type(node_info.path, qualifier)
     
     if not qualifier_type:
         # If the qualifier type is not found, it might be a static method call
