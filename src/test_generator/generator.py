@@ -1,6 +1,6 @@
 import os
 from jinja2 import Environment, FileSystemLoader
-from aux_generator import type_selector_function_for_fuzzing_param
+from src.utils.aux_generator import type_selector_function_for_fuzzing_param
 
 def generar_fuzzer_desde_plantilla(contexto: dict, directorio_salida: str = "."):
     

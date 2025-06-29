@@ -1,5 +1,6 @@
 # Exclusion from project files
 fuzzers_generados/
+.vscode/
 
 
 # Byte-compiled / optimized / DLL files

@@ -1,6 +1,6 @@
 # Generate test cases for a given function
-from generator import generar_fuzzer_desde_plantilla
-from function_identifier import analyze_java_file
+from src.test_generator.generator import generar_fuzzer_desde_plantilla
+from src.java_analyzer.function_identifier import analyze_java_file
 import argparse
 
 if __name__ == "__main__":
