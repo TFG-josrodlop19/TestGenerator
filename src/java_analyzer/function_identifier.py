@@ -2,17 +2,7 @@ import javalang
 from typing import Dict, Any, Optional, List
 from utils.classes import FunctionInfo, NodeInfo
 from collections import namedtuple
-
-def open_java_file(file_path: str) -> javalang.tree.CompilationUnit:
-    """Abre y parsea un archivo Java."""
-    try:
-        with open(file_path, 'r', encoding='utf-8') as file:
-            code = file.read()
-        return javalang.parse.parse(code)
-    except FileNotFoundError:
-        raise FileNotFoundError(f"El archivo {file_path} no existe.")
-    except Exception as e:
-        raise Exception(f"Error al parsear el archivo {file_path}: {e}")
+from java_analyzer.aux import open_java_file
         
         
 def get_package_name(code_tree: javalang.tree.CompilationUnit) -> str:
@@ -50,9 +40,10 @@ def find_function_call_at_line(code_tree: javalang.tree.CompilationUnit, target_
             if node.position.line <= target_line and line_diff < closest_line_diff:
                 target_call = NodeInfo(path, node)
                 closest_line_diff = line_diff
+                print(path)
     return target_call
 
-def get_node_type(node: javalang.tree.Node, qualifier: str) -> str:
+def _get_node_type_if_qualifier(node: javalang.tree.Node, qualifier: str) -> str:
     if isinstance(node, javalang.tree.MethodDeclaration):
         for parameter in node.parameters:
             if parameter.name == qualifier:
@@ -82,19 +73,21 @@ def get_node_type(node: javalang.tree.Node, qualifier: str) -> str:
 
 # TODO: look out the other vulnerable code to see how works a method implementation and call in the same class
 # TODO: currently it does not look in every branch of the node path, only in parents nodes and their children
-def _get_qualifier_type(node_path: List[javalang.tree.Node], qualifier: str) -> bool:
+def _get_qualifier_type(node_path: List[javalang.tree.Node], qualifier: str):
     nodes_already_visited = set()
     for node_not_normalized in reversed(node_path):
         # Normalize nodes into a list if it's not already
         nodes_to_check = node_not_normalized if isinstance(node_not_normalized, list) else [node_not_normalized]
         for node in filter(lambda n: n not in nodes_already_visited, nodes_to_check):        
             # Check if the variable is declared as a parameter in a method
-            object_type = get_node_type(node, qualifier)
+            object_type = _get_node_type_if_qualifier(node, qualifier)
             if object_type:
                 return object_type
             nodes_already_visited.add(node)
-    return None        
+    return None
 
+# def recursiva(node_path: List[javalang.tree.Node], qualifier: str):
+    
 
 # TODO: esto seguro que se puede mover a la funcion anterior
 def infer_parent_object_type(node_info: NodeInfo, imports: Dict[str, str]) -> str:
