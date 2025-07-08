@@ -1,4 +1,4 @@
-package TestGenerator.vulnerableCodeExamples;
+package individualExamples;
 
 import Callable.VulnerableCode;
 import java.util.*;
