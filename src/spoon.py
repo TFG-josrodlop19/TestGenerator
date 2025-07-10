@@ -34,7 +34,7 @@ def get_artifact_info(file_path: str, line_number: int, artifact_name: str) -> d
 # --- Ejemplo de uso ---
 if __name__ == "__main__":
     # Analizamos la llamada a 'processInput' en la línea 10 del fichero especificado
-    info = get_artifact_info("vulnerableCodeExamples/individualExamples/VulnerableCodeCall.java", 10, "processInput")
+    info = get_artifact_info("vulnerableCodeExamples/jacksonDatabind-CWE-502/src/main/java/com/example/JsonProcessor.java", 20, "processJson")
 
     if info:
         print("\n--- Información del Artefacto Encontrado ---")
