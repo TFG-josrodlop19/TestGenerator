@@ -172,6 +172,10 @@ public class CodeAnalyzer {
             this.artifactData.put("qualifierType", "Local call");
         }
 
+        // Get wheather the method is static or not
+        boolean isStatic = this.targetInvocation.getExecutable().isStatic();
+        this.artifactData.put("isStatic", isStatic);
+
         // Get parameters
         List<Map<String, String>> paramsData = new ArrayList<>();
 
@@ -283,6 +287,21 @@ public class CodeAnalyzer {
         }
     }
 
+    private void extractParamsFromReflectionFallback(List<CtExpression<?>> arguments,
+            List<Map<String, String>> paramsData) {
+        for (int i = 0; i < arguments.size(); i++) {
+            CtExpression<?> param = arguments.get(i);
+            CtTypeReference<?> paramType = param.getType();
+
+            Map<String, String> paramInfo = new HashMap<>();
+            paramInfo.put("typeAtCall", (paramType != null) ? paramType.getQualifiedName() : "UNRESOLVED_TYPE");
+            paramInfo.put("typeAtDeclaration", "UNRESOLVED_TYPE");
+            paramInfo.put("parameterName", "param" + i);
+
+            paramsData.add(paramInfo);
+        }
+    }
+
     private Class<?> loadClassFromType(CtTypeReference<?> typeRef) throws ClassNotFoundException {
         String typeName = typeRef.getQualifiedName();
         switch (typeName) {
@@ -329,7 +348,8 @@ public class CodeAnalyzer {
             }
         }
 
-        // If not found an exact match, look for a method with the same name and parameter count
+        // If not found an exact match, look for a method with the same name and
+        // parameter count
         for (Method method : methods) {
             if (method.getName().equals(methodName) &&
                     method.getParameterCount() == argTypes.length) {
@@ -358,20 +378,6 @@ public class CodeAnalyzer {
                 (primitive == short.class && wrapper == Short.class);
     }
 
-    private void extractParamsFromReflectionFallback(List<CtExpression<?>> arguments,
-            List<Map<String, String>> paramsData) {
-        for (int i = 0; i < arguments.size(); i++) {
-            CtExpression<?> param = arguments.get(i);
-            CtTypeReference<?> paramType = param.getType();
-
-            Map<String, String> paramInfo = new HashMap<>();
-            paramInfo.put("typeAtCall", (paramType != null) ? paramType.getQualifiedName() : "UNRESOLVED_TYPE");
-            paramInfo.put("typeAtDeclaration", "UNRESOLVED_TYPE");
-            paramInfo.put("parameterName", "param" + i);
-
-            paramsData.add(paramInfo);
-        }
-    }
 
     public void getDataAsString() {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
