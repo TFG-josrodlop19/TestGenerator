@@ -156,7 +156,11 @@ public class CodeAnalyzer {
 
         this.artifactData = new LinkedHashMap<>();
 
-        // Get artifact type and name (name is not really necessary)
+        // Get class name
+        this.artifactData.put("className", this.targetInvocation.getPosition().getFile().getName().replace(".java", ""));
+
+
+        // Get artifact type and name
         this.artifactData.put("artifactType", this.targetInvocation.getClass().getSimpleName());
         this.artifactData.put("methodName", this.targetInvocation.getExecutable().getSimpleName());
 
@@ -223,7 +227,7 @@ public class CodeAnalyzer {
         try {
             CtExpression<?> target = this.targetInvocation.getTarget();
             if (target == null) {
-                // Método local, usar reflection en la clase actual
+                // Local call, no target
                 extractParamsFromReflectionFallback(arguments, paramsData);
                 return;
             }
