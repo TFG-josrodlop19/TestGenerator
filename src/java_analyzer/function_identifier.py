@@ -40,7 +40,6 @@ def find_function_call_at_line(code_tree: javalang.tree.CompilationUnit, target_
             if node.position.line <= target_line and line_diff < closest_line_diff:
                 target_call = NodeInfo(path, node)
                 closest_line_diff = line_diff
-                print(path)
     return target_call
 
 def _get_node_type_if_qualifier(node: javalang.tree.Node, qualifier: str) -> str:
@@ -122,8 +121,8 @@ def analyze_java_file(file_path: str, line_num: int, artifact_name: str) -> Opti
               
         function_data = {
             # "target_package":  package_name,
-            # "target_function": target_function,
-            # "imports": imports,
+            "target_function": target_function,
+            "imports": imports,
             "types": types,
         }
         return function_data

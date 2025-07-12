@@ -1,39 +1,33 @@
-# Generate test cases for a given function
-from src.test_generator.generator import generar_fuzzer_desde_plantilla
-from src.java_analyzer.function_identifier import analyze_java_file
+from java_analyzer.spoon_reader import get_artifact_info
+# from test_generator.generator import generate_fuzzer
 import argparse
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Genera un fuzzer para una función Java específica.")
-    parser.add_argument("--file_path", type=str, help="Ruta al archivo Java que contiene la función.")
-    parser.add_argument("--line_num", type=int, help="Número de línea donde se declara la función.")
+    # parser = argparse.ArgumentParser(description="Generates fuzzer tests for Maven projects.")
+    # parser.add_argument("--pom_path", type=str, help="Path to the pom.xml file of the Maven project.")
+    # parser.add_argument("--file_path", type=str, help="Path to java file containing the vulnerable code.")
+    # parser.add_argument("--line_num", type=int, help="Número de línea donde se declara la función.")
+    # parser.add_argument("--artifact_name", type=str, help="Name of the artifact to analyze.")
+    # args = parser.parse_args()
     
-    args = parser.parse_args()
+    # # Analyze Java file to get information about the function
+    # function_info = get_artifact_info(
+    #     pom_path=args.pom_path,
+    #     file_path=args.file_path,
+    #     line_number=args.line_num,
+    #     artifact_name=args.artifact_name
+    # )
     
-    # Analizar el archivo Java para obtener información de la función
-    function_info = analyze_java_file(args.file_path, args.line_num)
-    
-    """
-    target_package: com.example
-    target_class: VulnerableCode
-    target_method: processInput
-    is_static: True
-    # TODO: Maybe change to a namedtuple
-    params: [{'type': 'byte', 'name': 'data'}]
-    line_of_declaration: 14
-    """
-    
-    context_parser = {
-        "clase_fuzzer": function_info["target_class"] + "Fuzzer",
-        "paquete_fuzzer": "com.example",
-        "paquete_target": function_info["target_package"],
-        "clase_target": function_info["target_class"],
-        "metodo_target": function_info["target_method"],
-        "params": function_info["params"]
-    }
-    
-    
-    generar_fuzzer_desde_plantilla(
-        contexto=context_parser,
-        directorio_salida="fuzzers_generados"
+    function_info = get_artifact_info(
+        pom_path="vulnerableCodeExamples/jacksonDatabind-CWE-502",
+        file_path="vulnerableCodeExamples/jacksonDatabind-CWE-502/src/main/java/com/example/JsonProcessor.java",
+        line_number=23,
+        artifact_name="readValue"
     )
+    
+    print(function_info)
+    
+    # generar_fuzzer_desde_plantilla(
+    #     data=function_info,
+    #     exit_directory="fuzzers_generados"
+    # )
