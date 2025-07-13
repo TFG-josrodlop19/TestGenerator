@@ -12,8 +12,8 @@ public class App {
         // int targetLine = Integer.parseInt(args[2]);
         // String targetName = args[3];
 
-        String pomPath = "/home/josue/universidad/TFG/OSS-Fuzz/projects/jacksondatabind";
-        String filePath = "/home/josue/universidad/TFG/OSS-Fuzz/projects/jacksondatabind/src/main/java/com/example/JsonProcessor.java";
+        String pomPath = "/home/josue/universidad/TFG/TestGenerator/vulnerableCodeExamples/jacksonDatabind-CWE-502";
+        String filePath = "/home/josue/universidad/TFG/TestGenerator/vulnerableCodeExamples/jacksonDatabind-CWE-502/src/main/java/com/example/JsonProcessor.java";
         int targetLine = 23;
         String targetName = "readValue";
 

@@ -34,6 +34,7 @@ import spoon.reflect.visitor.filter.TypeFilter;
 @Getter
 @Setter
 public class CodeAnalyzer {
+    // Input parameters
     private String filePath;
     private Integer targetLine;
     private String targetName;
@@ -65,6 +66,7 @@ public class CodeAnalyzer {
         this.filePath = filePath;
         this.targetLine = targetLine;
         this.targetName = targetName;
+        this.artifactData = new LinkedHashMap<>();
         this.callStack = new ArrayList<>();
     }
 
@@ -72,7 +74,8 @@ public class CodeAnalyzer {
         // Main method to process the code
         extractAST();
         findFunctionInvocation();
-        extractArtifactData();
+
+        this.artifactData.put("artifactData", extractArtifactData(this.targetInvocation));
         extractCallStack(); // Nuevo método para extraer la pila de llamadas
     }
 
@@ -158,36 +161,36 @@ public class CodeAnalyzer {
         return foundInvocation;
     }
 
-    private void extractArtifactData() {
+    private Map<String, Object> extractArtifactData(CtInvocation<?> invocation) {
         if (this.targetInvocation == null) {
             throw new IllegalStateException("Target invocation not found.");
         }
 
-        this.artifactData = new LinkedHashMap<>();
+        Map<String, Object> data = new LinkedHashMap<>();
 
         // Get class name
-        this.artifactData.put("className",
+        data.put("className",
                 this.targetInvocation.getPosition().getFile().getName().replace(".java", ""));
 
         // Get artifact type and name
-        this.artifactData.put("artifactType", this.targetInvocation.getClass().getSimpleName());
-        this.artifactData.put("methodName", this.targetInvocation.getExecutable().getSimpleName());
+        data.put("artifactType", this.targetInvocation.getClass().getSimpleName());
+        data.put("methodName", this.targetInvocation.getExecutable().getSimpleName());
 
         // Get qualifier type
         CtExpression<?> target = this.targetInvocation.getTarget();
         if (target != null) {
             CtTypeReference<?> qualifierTypeRef = target.getType();
             String qualifierType = (qualifierTypeRef != null) ? qualifierTypeRef.getQualifiedName() : "UNRESOLVED_TYPE";
-            this.artifactData.put("qualifierType", qualifierType);
-            this.artifactData.put("qualifierNameInCode", target.toString());
+            data.put("qualifierType", qualifierType);
+            data.put("qualifierNameInCode", target.toString());
         } else {
             // If there is no target, it is a local call. EX: myMethod();
-            this.artifactData.put("qualifierType", "Local call");
+            data.put("qualifierType", "Local call");
         }
 
         // Get wheather the method is static or not
         boolean isStatic = this.targetInvocation.getExecutable().isStatic();
-        this.artifactData.put("isStatic", isStatic);
+        data.put("isStatic", isStatic);
 
         // Get parameters
         List<Map<String, String>> paramsData = new ArrayList<>();
@@ -205,9 +208,9 @@ public class CodeAnalyzer {
                     this.targetName, this.spoonClassLoader);
         }
 
-        this.artifactData.put("parameters", paramsData);
+        data.put("parameters", paramsData);
+        return data;
     }
-
 
     // NUEVOS MÉTODOS PARA EXTRAER LA PILA DE LLAMADAS
 
@@ -406,12 +409,10 @@ public class CodeAnalyzer {
      * llamadas
      */
     public void getCompleteDataAsString() {
-        Map<String, Object> completeData = new LinkedHashMap<>();
-        completeData.put("artifactData", this.artifactData);
-        completeData.put("callStack", this.callStack);
+        this.artifactData.put("callStack", this.callStack);
 
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        String jsonOutput = gson.toJson(completeData);
+        String jsonOutput = gson.toJson(this.artifactData);
         System.out.println(jsonOutput);
     }
 }
