@@ -56,6 +56,8 @@ public class CodeAnalyzer {
     private List<Map<String, Object>> callStack;
 
     // ClassLoader con el classpath de Spoon
+    @Setter(AccessLevel.PRIVATE)
+    @Getter(AccessLevel.PRIVATE)
     private ClassLoader spoonClassLoader;
 
     public CodeAnalyzer(String pomPath, String filePath, Integer targetLine, String targetName) {
@@ -164,8 +166,8 @@ public class CodeAnalyzer {
         this.artifactData = new LinkedHashMap<>();
 
         // Get class name
-        this.artifactData.put("className", this.targetInvocation.getPosition().getFile().getName().replace(".java", ""));
-
+        this.artifactData.put("className",
+                this.targetInvocation.getPosition().getFile().getName().replace(".java", ""));
 
         // Get artifact type and name
         this.artifactData.put("artifactType", this.targetInvocation.getClass().getSimpleName());
@@ -196,203 +198,22 @@ public class CodeAnalyzer {
 
         if (functionDeclaration != null) {
             // Use Spoon declaration to extract parameter names and types
-            extractParamsFromSpoonDeclaration(functionDeclaration, arguments, paramsData);
+            ParamsProcessor.extractParamsFromSpoonDeclaration(functionDeclaration, arguments, paramsData);
         } else {
             // If no declaration is found, use reflection
-            extractParamsFromReflection(arguments, paramsData);
+            ParamsProcessor.extractParamsFromReflection(arguments, paramsData, this.targetInvocation,
+                    this.targetName, this.spoonClassLoader);
         }
 
         this.artifactData.put("parameters", paramsData);
     }
 
-    private void extractParamsFromSpoonDeclaration(CtExecutable<?> functionDeclaration,
-            List<CtExpression<?>> arguments,
-            List<Map<String, String>> paramsData) {
-        for (int i = 0; i < arguments.size(); i++) {
-            CtExpression<?> param = arguments.get(i);
-            CtTypeReference<?> paramType = param.getType();
-
-            Map<String, String> paramInfo = new HashMap<>();
-            paramInfo.put("typeAtCall", (paramType != null) ? paramType.getQualifiedName() : "UNRESOLVED_TYPE");
-
-            List<CtParameter<?>> declarationParams = functionDeclaration.getParameters();
-            if (i < declarationParams.size()) {
-                CtTypeReference<?> declarationType = declarationParams.get(i).getType();
-                paramInfo.put("parameterName", declarationParams.get(i).getSimpleName());
-                paramInfo.put("typeAtDeclaration",
-                        (declarationType != null) ? declarationType.getQualifiedName() : "UNRESOLVED_TYPE");
-            } else {
-                paramInfo.put("possibleArray", "true");
-            }
-
-            paramsData.add(paramInfo);
-        }
-    }
-
-    private void extractParamsFromReflection(List<CtExpression<?>> arguments,
-            List<Map<String, String>> paramsData) {
-        try {
-            CtExpression<?> target = this.targetInvocation.getTarget();
-            if (target == null) {
-                // Local call, no target
-                extractParamsFromReflectionFallback(arguments, paramsData);
-                return;
-            }
-
-            CtTypeReference<?> qualifierTypeRef = target.getType();
-            if (qualifierTypeRef == null) {
-                extractParamsFromReflectionFallback(arguments, paramsData);
-                return;
-            }
-
-            String qualifierClassName = qualifierTypeRef.getQualifiedName();
-
-            // Load class using Spoon's classloader
-            Class<?> clazz = spoonClassLoader.loadClass(qualifierClassName);
-
-            // Get the types of the arguments to get the correct method
-            Class<?>[] argTypes = new Class<?>[arguments.size()];
-            for (int i = 0; i < arguments.size(); i++) {
-                CtExpression<?> arg = arguments.get(i);
-                CtTypeReference<?> argType = arg.getType();
-                if (argType != null) {
-                    try {
-                        argTypes[i] = loadClassFromType(argType);
-                    } catch (Exception e) {
-                        argTypes[i] = Object.class;
-                    }
-                } else {
-                    argTypes[i] = Object.class;
-                }
-            }
-
-            // Look for the method in the class using reflection
-            Method method = findMatchingMethod(clazz, this.targetName, argTypes);
-
-            if (method != null) {
-                Parameter[] parameters = method.getParameters();
-                for (int i = 0; i < arguments.size(); i++) {
-                    CtExpression<?> param = arguments.get(i);
-                    CtTypeReference<?> paramType = param.getType();
-
-                    Map<String, String> paramInfo = new HashMap<>();
-                    paramInfo.put("typeAtCall", (paramType != null) ? paramType.getQualifiedName() : "UNRESOLVED_TYPE");
-
-                    if (i < parameters.length) {
-                        Parameter reflectionParam = parameters[i];
-                        paramInfo.put("parameterName", reflectionParam.getName());
-                        paramInfo.put("typeAtDeclaration", reflectionParam.getType().getName());
-                    } else {
-                        paramInfo.put("possibleArray", "true");
-                    }
-
-                    paramsData.add(paramInfo);
-                }
-            } else {
-                extractParamsFromReflectionFallback(arguments, paramsData);
-            }
-
-        } catch (Exception e) {
-            System.err.println("Error usando reflection: " + e.getMessage());
-            extractParamsFromReflectionFallback(arguments, paramsData);
-        }
-    }
-
-    private void extractParamsFromReflectionFallback(List<CtExpression<?>> arguments,
-            List<Map<String, String>> paramsData) {
-        for (int i = 0; i < arguments.size(); i++) {
-            CtExpression<?> param = arguments.get(i);
-            CtTypeReference<?> paramType = param.getType();
-
-            Map<String, String> paramInfo = new HashMap<>();
-            paramInfo.put("typeAtCall", (paramType != null) ? paramType.getQualifiedName() : "UNRESOLVED_TYPE");
-            paramInfo.put("typeAtDeclaration", "UNRESOLVED_TYPE");
-            paramInfo.put("parameterName", "param" + i);
-
-            paramsData.add(paramInfo);
-        }
-    }
-
-    private Class<?> loadClassFromType(CtTypeReference<?> typeRef) throws ClassNotFoundException {
-        String typeName = typeRef.getQualifiedName();
-        switch (typeName) {
-            case "int":
-                return int.class;
-            case "long":
-                return long.class;
-            case "double":
-                return double.class;
-            case "float":
-                return float.class;
-            case "boolean":
-                return boolean.class;
-            case "char":
-                return char.class;
-            case "byte":
-                return byte.class;
-            case "short":
-                return short.class;
-            default:
-                return spoonClassLoader.loadClass(typeName);
-        }
-    }
-
-    private Method findMatchingMethod(Class<?> clazz, String methodName, Class<?>[] argTypes) {
-        Method[] methods = clazz.getMethods();
-
-        // Look for an exact match with parameter types
-        for (Method method : methods) {
-            if (method.getName().equals(methodName) &&
-                    method.getParameterCount() == argTypes.length) {
-                Class<?>[] paramTypes = method.getParameterTypes();
-                boolean matches = true;
-                for (int i = 0; i < paramTypes.length; i++) {
-                    if (!paramTypes[i].isAssignableFrom(argTypes[i]) &&
-                            !areCompatibleTypes(paramTypes[i], argTypes[i])) {
-                        matches = false;
-                        break;
-                    }
-                }
-                if (matches) {
-                    return method;
-                }
-            }
-        }
-
-        // If not found an exact match, look for a method with the same name and
-        // parameter count
-        for (Method method : methods) {
-            if (method.getName().equals(methodName) &&
-                    method.getParameterCount() == argTypes.length) {
-                return method;
-            }
-        }
-
-        return null;
-    }
-
-    private boolean areCompatibleTypes(Class<?> paramType, Class<?> argType) {
-        if (paramType.isPrimitive() && !argType.isPrimitive() || !paramType.isPrimitive() && argType.isPrimitive()) {
-            return isWrapperType(paramType, argType);
-        }
-        return paramType.equals(argType);
-    }
-
-    private boolean isWrapperType(Class<?> primitive, Class<?> wrapper) {
-        return (primitive == int.class && wrapper == Integer.class) ||
-                (primitive == long.class && wrapper == Long.class) ||
-                (primitive == double.class && wrapper == Double.class) ||
-                (primitive == float.class && wrapper == Float.class) ||
-                (primitive == boolean.class && wrapper == Boolean.class) ||
-                (primitive == char.class && wrapper == Character.class) ||
-                (primitive == byte.class && wrapper == Byte.class) ||
-                (primitive == short.class && wrapper == Short.class);
-    }
 
     // NUEVOS MÉTODOS PARA EXTRAER LA PILA DE LLAMADAS
 
     /**
-     * Extrae la pila de llamadas del método target, comenzando desde el método que contiene
+     * Extrae la pila de llamadas del método target, comenzando desde el método que
+     * contiene
      * la invocación target y subiendo por la jerarquía de llamadas.
      */
     private void extractCallStack() {
@@ -401,18 +222,11 @@ public class CodeAnalyzer {
         }
 
         // Empezamos desde el método que contiene la invocación target
-        CtExecutable<?> containingMethod = findContainingMethod(this.targetInvocation);
+        CtExecutable<?> containingMethod = this.targetInvocation.getParent(CtExecutable.class);
+        List<String> visitedMethods = new ArrayList<>();
         if (containingMethod != null) {
-            buildCallStackRecursively(containingMethod, new ArrayList<>());
+            buildCallStackRecursively(containingMethod, visitedMethods);
         }
-    }
-
-    /**
-     * Encuentra el método que contiene la invocación dada
-     */
-    private CtExecutable<?> findContainingMethod(CtInvocation<?> invocation) {
-        CtExecutable<?> parent = invocation.getParent(CtExecutable.class);
-        return parent;
     }
 
     /**
@@ -437,10 +251,10 @@ public class CodeAnalyzer {
 
         // Buscar invocaciones a este método en todo el AST
         List<CtInvocation<?>> invocationsToCurrentMethod = findInvocationsToMethod(currentMethod);
-        
+
         // Para cada invocación encontrada, continuar subiendo en la pila
         for (CtInvocation<?> invocation : invocationsToCurrentMethod) {
-            CtExecutable<?> parentMethod = findContainingMethod(invocation);
+            CtExecutable<?> parentMethod = invocation.getParent(CtExecutable.class);
             if (parentMethod != null && !visitedMethods.contains(getMethodSignature(parentMethod))) {
                 buildCallStackRecursively(parentMethod, new ArrayList<>(visitedMethods));
                 break; // Tomamos solo la primera cadena de llamadas encontrada
@@ -454,18 +268,18 @@ public class CodeAnalyzer {
     private List<CtInvocation<?>> findInvocationsToMethod(CtExecutable<?> targetMethod) {
         List<CtInvocation<?>> invocations = new ArrayList<>();
         String targetMethodName = targetMethod.getSimpleName();
-        
+
         // Buscar en todo el AST
         for (CtType<?> type : this.AST.getAllTypes()) {
             List<CtInvocation<?>> typeInvocations = type.getElements(new TypeFilter<>(CtInvocation.class));
-            
+
             for (CtInvocation<?> invocation : typeInvocations) {
                 if (isInvocationToMethod(invocation, targetMethod)) {
                     invocations.add(invocation);
                 }
             }
         }
-        
+
         return invocations;
     }
 
@@ -475,7 +289,7 @@ public class CodeAnalyzer {
     private boolean isInvocationToMethod(CtInvocation<?> invocation, CtExecutable<?> targetMethod) {
         String invocationName = invocation.getExecutable().getSimpleName();
         String targetName = targetMethod.getSimpleName();
-        
+
         if (!invocationName.equals(targetName)) {
             return false;
         }
@@ -483,7 +297,7 @@ public class CodeAnalyzer {
         // Verificar que el número de parámetros coincida
         int invocationArgCount = invocation.getArguments().size();
         int targetParamCount = targetMethod.getParameters().size();
-        
+
         if (invocationArgCount != targetParamCount) {
             return false;
         }
@@ -507,37 +321,37 @@ public class CodeAnalyzer {
      */
     private Map<String, Object> createMethodInfo(CtExecutable<?> method) {
         Map<String, Object> methodInfo = new LinkedHashMap<>();
-        
+
         // Información básica del método
         methodInfo.put("methodName", method.getSimpleName());
         methodInfo.put("methodType", method instanceof CtMethod ? "method" : "constructor");
-        
+
         // Información de la clase contenedora
         CtType<?> containingClass = method.getParent(CtType.class);
         if (containingClass != null) {
             methodInfo.put("className", containingClass.getSimpleName());
-            methodInfo.put("packageName", containingClass.getPackage() != null ? 
-                containingClass.getPackage().getQualifiedName() : "default");
+            methodInfo.put("packageName",
+                    containingClass.getPackage() != null ? containingClass.getPackage().getQualifiedName() : "default");
             methodInfo.put("fullClassName", containingClass.getQualifiedName());
         }
-        
+
         // Información de posición en el código
         if (method.getPosition().isValidPosition()) {
             methodInfo.put("fileName", method.getPosition().getFile().getName());
             methodInfo.put("lineNumber", method.getPosition().getLine());
         }
-        
+
         // Información de parámetros
         List<Map<String, String>> parametersInfo = new ArrayList<>();
         for (CtParameter<?> param : method.getParameters()) {
             Map<String, String> paramInfo = new HashMap<>();
             paramInfo.put("parameterName", param.getSimpleName());
-            paramInfo.put("parameterType", param.getType() != null ? 
-                param.getType().getQualifiedName() : "UNRESOLVED_TYPE");
+            paramInfo.put("parameterType",
+                    param.getType() != null ? param.getType().getQualifiedName() : "UNRESOLVED_TYPE");
             parametersInfo.add(paramInfo);
         }
         methodInfo.put("parameters", parametersInfo);
-        
+
         // Información adicional
         if (method instanceof CtMethod) {
             CtMethod<?> ctMethod = (CtMethod<?>) method;
@@ -545,8 +359,7 @@ public class CodeAnalyzer {
             methodInfo.put("isPublic", ctMethod.isPublic());
             methodInfo.put("isPrivate", ctMethod.isPrivate());
             methodInfo.put("isProtected", ctMethod.isProtected());
-            methodInfo.put("returnType", ctMethod.getType() != null ? 
-                ctMethod.getType().getQualifiedName() : "void");
+            methodInfo.put("returnType", ctMethod.getType() != null ? ctMethod.getType().getQualifiedName() : "void");
         } else if (method instanceof CtConstructor) {
             CtConstructor<?> ctConstructor = (CtConstructor<?>) method;
             methodInfo.put("isPublic", ctConstructor.isPublic());
@@ -554,7 +367,7 @@ public class CodeAnalyzer {
             methodInfo.put("isProtected", ctConstructor.isProtected());
             methodInfo.put("returnType", "constructor");
         }
-        
+
         return methodInfo;
     }
 
@@ -563,29 +376,23 @@ public class CodeAnalyzer {
      */
     private String getMethodSignature(CtExecutable<?> method) {
         StringBuilder signature = new StringBuilder();
-        
+
         CtType<?> containingClass = method.getParent(CtType.class);
         if (containingClass != null) {
             signature.append(containingClass.getQualifiedName()).append(".");
         }
-        
+
         signature.append(method.getSimpleName()).append("(");
-        
+
         for (int i = 0; i < method.getParameters().size(); i++) {
-            if (i > 0) signature.append(",");
+            if (i > 0)
+                signature.append(",");
             CtParameter<?> param = method.getParameters().get(i);
             signature.append(param.getType() != null ? param.getType().getQualifiedName() : "UNRESOLVED");
         }
-        
+
         signature.append(")");
         return signature.toString();
-    }
-
-    /**
-     * Getter público para acceder a la pila de llamadas
-     */
-    public List<Map<String, Object>> getCallStack() {
-        return this.callStack;
     }
 
     public void getDataAsString() {
@@ -595,13 +402,14 @@ public class CodeAnalyzer {
     }
 
     /**
-     * Nuevo método para obtener tanto los datos del artefacto como la pila de llamadas
+     * Nuevo método para obtener tanto los datos del artefacto como la pila de
+     * llamadas
      */
     public void getCompleteDataAsString() {
         Map<String, Object> completeData = new LinkedHashMap<>();
         completeData.put("artifactData", this.artifactData);
         completeData.put("callStack", this.callStack);
-        
+
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         String jsonOutput = gson.toJson(completeData);
         System.out.println(jsonOutput);
