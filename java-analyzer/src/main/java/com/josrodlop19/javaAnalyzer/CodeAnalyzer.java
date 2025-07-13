@@ -7,7 +7,6 @@ import java.lang.reflect.Parameter;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,6 +26,8 @@ import spoon.reflect.code.CtInvocation;
 import spoon.reflect.declaration.CtExecutable;
 import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.declaration.CtType;
+import spoon.reflect.declaration.CtMethod;
+import spoon.reflect.declaration.CtConstructor;
 import spoon.reflect.reference.CtTypeReference;
 import spoon.reflect.visitor.filter.TypeFilter;
 
@@ -50,6 +51,10 @@ public class CodeAnalyzer {
     @Setter(AccessLevel.PRIVATE)
     private Map<String, Object> artifactData;
 
+    // Nuevo atributo para almacenar la pila de llamadas
+    @Setter(AccessLevel.PRIVATE)
+    private List<Map<String, Object>> callStack;
+
     // ClassLoader con el classpath de Spoon
     private ClassLoader spoonClassLoader;
 
@@ -58,6 +63,7 @@ public class CodeAnalyzer {
         this.filePath = filePath;
         this.targetLine = targetLine;
         this.targetName = targetName;
+        this.callStack = new ArrayList<>();
     }
 
     public void processCode() {
@@ -65,6 +71,7 @@ public class CodeAnalyzer {
         extractAST();
         findFunctionInvocation();
         extractArtifactData();
+        extractCallStack(); // Nuevo método para extraer la pila de llamadas
     }
 
     private void extractAST() {
@@ -382,10 +389,221 @@ public class CodeAnalyzer {
                 (primitive == short.class && wrapper == Short.class);
     }
 
+    // NUEVOS MÉTODOS PARA EXTRAER LA PILA DE LLAMADAS
+
+    /**
+     * Extrae la pila de llamadas del método target, comenzando desde el método que contiene
+     * la invocación target y subiendo por la jerarquía de llamadas.
+     */
+    private void extractCallStack() {
+        if (this.targetInvocation == null) {
+            throw new IllegalStateException("Target invocation not found.");
+        }
+
+        // Empezamos desde el método que contiene la invocación target
+        CtExecutable<?> containingMethod = findContainingMethod(this.targetInvocation);
+        if (containingMethod != null) {
+            buildCallStackRecursively(containingMethod, new ArrayList<>());
+        }
+    }
+
+    /**
+     * Encuentra el método que contiene la invocación dada
+     */
+    private CtExecutable<?> findContainingMethod(CtInvocation<?> invocation) {
+        CtExecutable<?> parent = invocation.getParent(CtExecutable.class);
+        return parent;
+    }
+
+    /**
+     * Construye la pila de llamadas de forma recursiva
+     */
+    private void buildCallStackRecursively(CtExecutable<?> currentMethod, List<String> visitedMethods) {
+        if (currentMethod == null) {
+            return;
+        }
+
+        // Evitar ciclos infinitos
+        String methodSignature = getMethodSignature(currentMethod);
+        if (visitedMethods.contains(methodSignature)) {
+            return;
+        }
+
+        visitedMethods.add(methodSignature);
+
+        // Crear información del método actual
+        Map<String, Object> methodInfo = createMethodInfo(currentMethod);
+        this.callStack.add(0, methodInfo); // Añadir al principio para mantener el orden correcto
+
+        // Buscar invocaciones a este método en todo el AST
+        List<CtInvocation<?>> invocationsToCurrentMethod = findInvocationsToMethod(currentMethod);
+        
+        // Para cada invocación encontrada, continuar subiendo en la pila
+        for (CtInvocation<?> invocation : invocationsToCurrentMethod) {
+            CtExecutable<?> parentMethod = findContainingMethod(invocation);
+            if (parentMethod != null && !visitedMethods.contains(getMethodSignature(parentMethod))) {
+                buildCallStackRecursively(parentMethod, new ArrayList<>(visitedMethods));
+                break; // Tomamos solo la primera cadena de llamadas encontrada
+            }
+        }
+    }
+
+    /**
+     * Busca todas las invocaciones a un método específico en el AST
+     */
+    private List<CtInvocation<?>> findInvocationsToMethod(CtExecutable<?> targetMethod) {
+        List<CtInvocation<?>> invocations = new ArrayList<>();
+        String targetMethodName = targetMethod.getSimpleName();
+        
+        // Buscar en todo el AST
+        for (CtType<?> type : this.AST.getAllTypes()) {
+            List<CtInvocation<?>> typeInvocations = type.getElements(new TypeFilter<>(CtInvocation.class));
+            
+            for (CtInvocation<?> invocation : typeInvocations) {
+                if (isInvocationToMethod(invocation, targetMethod)) {
+                    invocations.add(invocation);
+                }
+            }
+        }
+        
+        return invocations;
+    }
+
+    /**
+     * Verifica si una invocación corresponde a un método específico
+     */
+    private boolean isInvocationToMethod(CtInvocation<?> invocation, CtExecutable<?> targetMethod) {
+        String invocationName = invocation.getExecutable().getSimpleName();
+        String targetName = targetMethod.getSimpleName();
+        
+        if (!invocationName.equals(targetName)) {
+            return false;
+        }
+
+        // Verificar que el número de parámetros coincida
+        int invocationArgCount = invocation.getArguments().size();
+        int targetParamCount = targetMethod.getParameters().size();
+        
+        if (invocationArgCount != targetParamCount) {
+            return false;
+        }
+
+        // Verificar que la clase contenedora coincida (si es posible)
+        CtType<?> targetClass = targetMethod.getParent(CtType.class);
+        if (targetClass != null) {
+            CtExpression<?> invocationTarget = invocation.getTarget();
+            if (invocationTarget != null && invocationTarget.getType() != null) {
+                String invocationClassName = invocationTarget.getType().getQualifiedName();
+                String targetClassName = targetClass.getQualifiedName();
+                return invocationClassName.equals(targetClassName);
+            }
+        }
+
+        return true; // Si no podemos verificar la clase, asumimos que es correcto
+    }
+
+    /**
+     * Crea la información completa de un método para la pila de llamadas
+     */
+    private Map<String, Object> createMethodInfo(CtExecutable<?> method) {
+        Map<String, Object> methodInfo = new LinkedHashMap<>();
+        
+        // Información básica del método
+        methodInfo.put("methodName", method.getSimpleName());
+        methodInfo.put("methodType", method instanceof CtMethod ? "method" : "constructor");
+        
+        // Información de la clase contenedora
+        CtType<?> containingClass = method.getParent(CtType.class);
+        if (containingClass != null) {
+            methodInfo.put("className", containingClass.getSimpleName());
+            methodInfo.put("packageName", containingClass.getPackage() != null ? 
+                containingClass.getPackage().getQualifiedName() : "default");
+            methodInfo.put("fullClassName", containingClass.getQualifiedName());
+        }
+        
+        // Información de posición en el código
+        if (method.getPosition().isValidPosition()) {
+            methodInfo.put("fileName", method.getPosition().getFile().getName());
+            methodInfo.put("lineNumber", method.getPosition().getLine());
+        }
+        
+        // Información de parámetros
+        List<Map<String, String>> parametersInfo = new ArrayList<>();
+        for (CtParameter<?> param : method.getParameters()) {
+            Map<String, String> paramInfo = new HashMap<>();
+            paramInfo.put("parameterName", param.getSimpleName());
+            paramInfo.put("parameterType", param.getType() != null ? 
+                param.getType().getQualifiedName() : "UNRESOLVED_TYPE");
+            parametersInfo.add(paramInfo);
+        }
+        methodInfo.put("parameters", parametersInfo);
+        
+        // Información adicional
+        if (method instanceof CtMethod) {
+            CtMethod<?> ctMethod = (CtMethod<?>) method;
+            methodInfo.put("isStatic", ctMethod.isStatic());
+            methodInfo.put("isPublic", ctMethod.isPublic());
+            methodInfo.put("isPrivate", ctMethod.isPrivate());
+            methodInfo.put("isProtected", ctMethod.isProtected());
+            methodInfo.put("returnType", ctMethod.getType() != null ? 
+                ctMethod.getType().getQualifiedName() : "void");
+        } else if (method instanceof CtConstructor) {
+            CtConstructor<?> ctConstructor = (CtConstructor<?>) method;
+            methodInfo.put("isPublic", ctConstructor.isPublic());
+            methodInfo.put("isPrivate", ctConstructor.isPrivate());
+            methodInfo.put("isProtected", ctConstructor.isProtected());
+            methodInfo.put("returnType", "constructor");
+        }
+        
+        return methodInfo;
+    }
+
+    /**
+     * Genera una signatura única para un método
+     */
+    private String getMethodSignature(CtExecutable<?> method) {
+        StringBuilder signature = new StringBuilder();
+        
+        CtType<?> containingClass = method.getParent(CtType.class);
+        if (containingClass != null) {
+            signature.append(containingClass.getQualifiedName()).append(".");
+        }
+        
+        signature.append(method.getSimpleName()).append("(");
+        
+        for (int i = 0; i < method.getParameters().size(); i++) {
+            if (i > 0) signature.append(",");
+            CtParameter<?> param = method.getParameters().get(i);
+            signature.append(param.getType() != null ? param.getType().getQualifiedName() : "UNRESOLVED");
+        }
+        
+        signature.append(")");
+        return signature.toString();
+    }
+
+    /**
+     * Getter público para acceder a la pila de llamadas
+     */
+    public List<Map<String, Object>> getCallStack() {
+        return this.callStack;
+    }
 
     public void getDataAsString() {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         String jsonOutput = gson.toJson(this.artifactData);
+        System.out.println(jsonOutput);
+    }
+
+    /**
+     * Nuevo método para obtener tanto los datos del artefacto como la pila de llamadas
+     */
+    public void getCompleteDataAsString() {
+        Map<String, Object> completeData = new LinkedHashMap<>();
+        completeData.put("artifactData", this.artifactData);
+        completeData.put("callStack", this.callStack);
+        
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        String jsonOutput = gson.toJson(completeData);
         System.out.println(jsonOutput);
     }
 }
