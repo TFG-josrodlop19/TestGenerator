@@ -9,6 +9,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import spoon.reflect.CtModel;
+import spoon.reflect.code.CtAbstractInvocation;
 import spoon.reflect.code.CtConstructorCall;
 import spoon.reflect.code.CtInvocation;
 import spoon.reflect.declaration.CtConstructor;
@@ -27,7 +28,8 @@ public class StackCallProcessor {
     private CtModel AST;
 
     private Map<String, CtExecutable<?>> executables;
-    private Map<String, List<CtInvocation<?>>> methodInvocations;
+    private Map<String, List<CtAbstractInvocation<?>>> methodInvocations;
+    private Map<String, List<CtConstructorCall<?>>> constructorCalls;
     private ArtifactData callTree;
     private List<List<Map<String, Object>>> allCallPaths;
 
@@ -36,6 +38,7 @@ public class StackCallProcessor {
         this.AST = AST;
         this.executables = new LinkedHashMap<>();
         this.methodInvocations = new LinkedHashMap<>();
+        this.constructorCalls = new LinkedHashMap<>();
     }
 
     public void extractCallStack() {
@@ -68,8 +71,13 @@ public class StackCallProcessor {
             for (CtExecutable<?> executable : executables) {
                 String signature = createSignature(executable);
                 this.executables.put(signature, executable);
-                List<CtInvocation<?>> invocations = executable.getElements(new TypeFilter<>(CtInvocation.class));
+                List<CtAbstractInvocation<?>> invocations = executable.getElements(new TypeFilter<>(CtAbstractInvocation.class));
                 this.methodInvocations.put(signature, invocations);
+                
+                
+                List<CtConstructorCall<?>> constructorCalls = executable
+                        .getElements(new TypeFilter<>(CtConstructorCall.class));
+                this.constructorCalls.put(signature, constructorCalls);
             }
         }
     }
@@ -100,12 +108,11 @@ public class StackCallProcessor {
         return key.toString();
     }
 
-    private ArtifactData buildCallTree(CtInvocation<?> currentInvocation, Map<String, ArtifactData> visited) {
+    private ArtifactData buildCallTree(CtAbstractInvocation<?> currentInvocation, Map<String, ArtifactData> visited) {
 
         ArtifactData treeNode = new ArtifactData();
 
         // Obtener el método que contiene la invocación actual
-        // TODO: revisar el caso en el que haya un constructor en lugar de método
         CtExecutable<?> currentMethod = currentInvocation.getParent(CtExecutable.class);
 
         if (currentMethod == null) {
@@ -148,16 +155,16 @@ public class StackCallProcessor {
         List<ArtifactData> callers = new ArrayList<>();
 
         // Buscar en todas las invocaciones de todos los métodos
-        for (Map.Entry<String, List<CtInvocation<?>>> entry : this.methodInvocations.entrySet()) {
+        for (Map.Entry<String, List<CtAbstractInvocation<?>>> entry : this.methodInvocations.entrySet()) {
             String methodKey = entry.getKey();
-            List<CtInvocation<?>> invocations = entry.getValue();
+            List<CtAbstractInvocation<?>> invocations = entry.getValue();
 
             // Saltar métodos ya visitados
             if (visitedMethods.containsKey(methodKey)) {
                 continue;
             }
 
-            for (CtInvocation<?> invocation : invocations) {
+            for (CtAbstractInvocation<?> invocation : invocations) {
                 if (isCallingTargetExecutable(invocation, targetMethod)) {
                     // Encontramos un caller, agregar al árbol recursivamente
                     ArtifactData callerNode = buildCallTree(invocation, visitedMethods);
@@ -166,10 +173,30 @@ public class StackCallProcessor {
             }
         }
 
+        // List<ArtifactData> constructorCallers = new ArrayList<>();
+        // for (Map.Entry<String, List<CtConstructorCall<?>>> entry : this.constructorCalls.entrySet()) {
+        //     String methodKey = entry.getKey();
+        //     List<CtConstructorCall<?>> constructorCalls = entry.getValue();
+
+        //     // Saltar métodos ya visitados
+        //     if (visitedMethods.containsKey(methodKey)) {
+        //         continue;
+        //     }
+
+        //     for (CtConstructorCall<?> constructorCall : constructorCalls) {
+        //         if (isCallingTargetExecutable(constructorCall, targetMethod)) {
+        //             // Encontramos un caller, agregar al árbol recursivamente
+        //             ArtifactData callerNode = buildCallTree(constructorCall, visitedMethods);
+        //             constructorCallers.add(callerNode);
+        //         }
+        //     }
+            
+        // }
+
         return callers;
     }
 
-    private boolean isCallingTargetExecutable(CtInvocation<?> invocation, CtExecutable<?> targetExecutable) {
+    private Boolean isCallingTargetExecutable(CtAbstractInvocation<?> invocation, CtExecutable<?> targetExecutable) {
         // La forma más robusta de comparar es usando las referencias, que contienen la
         // firma completa.
         return targetExecutable.getReference().equals(invocation.getExecutable());

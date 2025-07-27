@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import spoon.reflect.code.CtAbstractInvocation;
 import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtInvocation;
 import spoon.reflect.declaration.CtConstructor;
@@ -105,7 +106,7 @@ public class OutputDataBuilder {
         return treeNode;
     }
 
-    public static ArtifactData createRootTreeNode(CtInvocation<?> invocation) {
+    public static ArtifactData createRootTreeNode(CtAbstractInvocation<?> invocation) {
         ArtifactData treeNode = new ArtifactData();
         treeNode.setFilePath(invocation.getPosition().getFile().getAbsolutePath());
         treeNode.setLineNumber(invocation.getPosition().getLine());
