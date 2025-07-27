@@ -52,11 +52,6 @@ public class CodeAnalyzer {
     @Setter(AccessLevel.PRIVATE)
     private List<Map<String, Object>> callStack;
 
-    // ClassLoader con el classpath de Spoon
-    @Setter(AccessLevel.PRIVATE)
-    @Getter(AccessLevel.PRIVATE)
-    private ClassLoader spoonClassLoader;
-
     public CodeAnalyzer(String pomPath, String filePath, Integer targetLine, String targetName) {
         this.pomPath = pomPath;
         this.filePath = filePath;
@@ -71,7 +66,7 @@ public class CodeAnalyzer {
         extractAST();
         findFunctionInvocation();
 
-        ArtifactData artifactData = OutputDataBuilder.extractArtifactData(this.targetInvocation, this.getSpoonClassLoader());
+        ArtifactData artifactData = OutputDataBuilder.extractArtifactData(this.targetInvocation);
 
         this.artifactData.put("artifactData", artifactData);
         extractCallStack();
@@ -88,23 +83,10 @@ public class CodeAnalyzer {
 
         // Manually create the classloader to be able to read method declarations in
         // dependencies
-        createSpoonClassLoader(classpath);
+        SpoonClassLoader.getInstance().setClassLoader(classpath);
 
         launcher.buildModel();
         this.setAST(launcher.getModel());
-    }
-
-    private void createSpoonClassLoader(String[] classpath) {
-        try {
-            URL[] urls = new URL[classpath.length];
-            for (int i = 0; i < classpath.length; i++) {
-                urls[i] = new File(classpath[i]).toURI().toURL();
-            }
-            this.spoonClassLoader = new URLClassLoader(urls, this.getClass().getClassLoader());
-        } catch (Exception e) {
-            System.err.println("Error while creating classpath: " + e.getMessage());
-            this.spoonClassLoader = this.getClass().getClassLoader();
-        }
     }
 
     private void findFunctionInvocation() {

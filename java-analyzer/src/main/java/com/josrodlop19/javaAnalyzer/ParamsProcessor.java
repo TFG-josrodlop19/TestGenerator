@@ -2,6 +2,7 @@ package com.josrodlop19.javaAnalyzer;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,9 +14,9 @@ import spoon.reflect.declaration.CtParameter;
 import spoon.reflect.reference.CtTypeReference;
 
 public class ParamsProcessor {
-    public static void extractParamsFromSpoonDeclaration(CtExecutable<?> functionDeclaration,
-            List<CtExpression<?>> arguments,
-            List<Map<String, String>> paramsData) {
+    public static List<Map<String, String>> extractParamsFromSpoonDeclaration(CtExecutable<?> functionDeclaration,
+            List<CtExpression<?>> arguments) {
+        List<Map<String, String>> paramsData = new ArrayList<>();
         for (int i = 0; i < arguments.size(); i++) {
             CtExpression<?> param = arguments.get(i);
             CtTypeReference<?> paramType = param.getType();
@@ -35,10 +36,12 @@ public class ParamsProcessor {
 
             paramsData.add(paramInfo);
         }
+        return paramsData;
     }
 
-    public static void extractParamsFromReflection(List<CtExpression<?>> arguments,
-            List<Map<String, String>> paramsData, CtInvocation<?> invocation, String targetName, ClassLoader spoonClassLoader) {
+    public static List<Map<String, String>> extractParamsFromReflection(List<CtExpression<?>> arguments,
+            CtInvocation<?> invocation, String targetName) {
+        List<Map<String, String>> paramsData = new ArrayList<>();
         try {
             // Target = object on which the method is called. F.E: in
             // myObject.myMethod(arg1, arg2) target = myObject
@@ -46,19 +49,19 @@ public class ParamsProcessor {
             if (target == null) {
                 // Local call, no target
                 extractParamsFromReflectionFallback(arguments, paramsData);
-                return;
+                return paramsData;
             }
 
             CtTypeReference<?> qualifierTypeRef = target.getType();
             if (qualifierTypeRef == null) {
                 extractParamsFromReflectionFallback(arguments, paramsData);
-                return;
+                return paramsData;
             }
 
             String qualifierClassName = qualifierTypeRef.getQualifiedName();
 
             // Load class using Spoon's classloader
-            Class<?> clazz = spoonClassLoader.loadClass(qualifierClassName);
+            Class<?> clazz = SpoonClassLoader.getInstance().getClassLoader().loadClass(qualifierClassName);
 
             // Get the types of the arguments to get the correct method
             Class<?>[] argTypes = new Class<?>[arguments.size()];
@@ -67,7 +70,7 @@ public class ParamsProcessor {
                 CtTypeReference<?> argType = arg.getType();
                 if (argType != null) {
                     try {
-                        argTypes[i] = loadClassFromType(argType, spoonClassLoader);
+                        argTypes[i] = loadClassFromType(argType, SpoonClassLoader.getInstance().getClassLoader());
                     } catch (Exception e) {
                         argTypes[i] = Object.class;
                     }
@@ -106,6 +109,7 @@ public class ParamsProcessor {
             System.err.println("Error usando reflection: " + e.getMessage());
             extractParamsFromReflectionFallback(arguments, paramsData);
         }
+        return paramsData;
     }
 
     private static void extractParamsFromReflectionFallback(List<CtExpression<?>> arguments,
