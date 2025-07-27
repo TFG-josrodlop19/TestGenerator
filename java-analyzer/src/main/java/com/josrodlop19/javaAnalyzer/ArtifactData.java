@@ -1,5 +1,6 @@
 package com.josrodlop19.javaAnalyzer;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -11,8 +12,8 @@ import lombok.Setter;
 public class ArtifactData {
     // Location atributes
     private String filePath;
-    private int lineNumber;
     private String className;
+    private int lineNumber;
 
     // Method atributes
     private String nodeType;
@@ -22,6 +23,14 @@ public class ArtifactData {
     private String artifactSignature;
     private String target;
     private Boolean isStatic;
+    private Boolean isPublic;
     private List<Map<String, String>> parameters;
 
+    // Call tree atributes
+    private List<ArtifactData> callers;
+
+    public ArtifactData() {
+        // Default constructor
+        this.callers = new ArrayList<>();
+    }
 }
