@@ -88,7 +88,7 @@ public class OutputDataBuilder {
 
 
     // TODO: Mirar si cambiar los parametros de ubicacion a los de la llamada y no los del metodo (mirar en todos lo de TreeNode)
-    public static ArtifactData createContructorTreeNode(CtConstructor<?> constructor) {
+    public static ArtifactData createConstructorTreeNode(CtConstructor<?> constructor) {
         ArtifactData treeNode = new ArtifactData();
         treeNode.setFilePath(constructor.getPosition().getFile().getAbsolutePath());
         treeNode.setClassName(constructor.getDeclaringType().getSimpleName());
@@ -134,6 +134,7 @@ public class OutputDataBuilder {
         treeNode.setParameters(paramsData);
         return treeNode;
     }
+    
 
     private static List<Map<String, String>> argumentsInfo(CtExecutable<?> executable) {
         List<CtParameter<?>> arguments = executable.getParameters();

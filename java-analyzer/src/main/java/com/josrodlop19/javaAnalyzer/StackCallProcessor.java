@@ -9,6 +9,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import spoon.reflect.CtModel;
+import spoon.reflect.code.CtConstructorCall;
 import spoon.reflect.code.CtInvocation;
 import spoon.reflect.declaration.CtConstructor;
 import spoon.reflect.declaration.CtExecutable;
@@ -25,7 +26,7 @@ public class StackCallProcessor {
     @Setter(AccessLevel.PRIVATE)
     private CtModel AST;
 
-    private Map<String, CtMethod<?>> methodMap;
+    private Map<String, CtExecutable<?>> executables;
     private Map<String, List<CtInvocation<?>>> methodInvocations;
     private ArtifactData callTree;
     private List<List<Map<String, Object>>> allCallPaths;
@@ -33,7 +34,7 @@ public class StackCallProcessor {
     public StackCallProcessor(CtInvocation<?> targetInvocation, CtModel AST) {
         this.targetInvocation = targetInvocation;
         this.AST = AST;
-        this.methodMap = new LinkedHashMap<>();
+        this.executables = new LinkedHashMap<>();
         this.methodInvocations = new LinkedHashMap<>();
     }
 
@@ -62,26 +63,13 @@ public class StackCallProcessor {
     }
 
     private void collectMethodsAndInvocations() {
-
-        // Recorrer todos los tipos en el AST
         for (CtType<?> type : this.getAST().getAllTypes()) {
-            // Procesar todos los métodos del tipo
-            for (CtMethod<?> method : type.getMethods()) {
-                String methodKey = createSignature(method);
-                this.methodMap.put(methodKey, method);
-
-                // Encontrar todas las invocaciones dentro de este método
-                List<CtInvocation<?>> invocations = method.getElements(new TypeFilter<>(CtInvocation.class));
-                this.methodInvocations.put(methodKey, invocations);
-            }
-
-            // También procesar constructores
-            List<CtConstructor<?>> constructors = type.getElements(new TypeFilter<>(CtConstructor.class));
-            for (CtConstructor<?> constructor : constructors) {
-                String constructorKey = createSignature(constructor);
-                // Los constructores también pueden tener invocaciones
-                List<CtInvocation<?>> invocations = constructor.getElements(new TypeFilter<>(CtInvocation.class));
-                this.methodInvocations.put(constructorKey, invocations);
+            List<CtExecutable<?>> executables = type.getElements(new TypeFilter<>(CtExecutable.class));
+            for (CtExecutable<?> executable : executables) {
+                String signature = createSignature(executable);
+                this.executables.put(signature, executable);
+                List<CtInvocation<?>> invocations = executable.getElements(new TypeFilter<>(CtInvocation.class));
+                this.methodInvocations.put(signature, invocations);
             }
         }
     }
@@ -118,17 +106,10 @@ public class StackCallProcessor {
 
         // Obtener el método que contiene la invocación actual
         // TODO: revisar el caso en el que haya un constructor en lugar de método
-        CtMethod<?> currentMethod = currentInvocation.getParent(CtMethod.class);
+        CtExecutable<?> currentMethod = currentInvocation.getParent(CtExecutable.class);
 
         if (currentMethod == null) {
-            // Podría estar en un constructor
-            CtConstructor<?> constructor = currentInvocation.getParent(CtConstructor.class);
-            if (constructor != null) {
-                treeNode = OutputDataBuilder.createContructorTreeNode(constructor);
-            } else {
-                // Nodo raíz o sin contexto
-                treeNode = OutputDataBuilder.createRootTreeNode(currentInvocation);
-            }
+            treeNode = OutputDataBuilder.createRootTreeNode(currentInvocation);
             return treeNode;
         }
 
@@ -140,8 +121,14 @@ public class StackCallProcessor {
         String currentMethodKey = createSignature(currentMethod);
 
         // Crear información del nodo actual
-
-        treeNode = OutputDataBuilder.createMethodTreeNode(currentMethod);
+        if (currentMethod instanceof CtMethod<?>) {
+            treeNode = OutputDataBuilder.createMethodTreeNode((CtMethod<?>) currentMethod);
+        } else if (currentMethod instanceof CtConstructor<?>) {
+            treeNode = OutputDataBuilder.createConstructorTreeNode((CtConstructor<?>) currentMethod);
+        } else {
+            throw new IllegalArgumentException(
+                    "Unsupported executable type: " + currentMethod.getClass().getSimpleName());
+        }
 
         // Crear nueva lista para esta rama
         // Map<String, Object> newVisited = new LinkedHashMap<>(visited);
@@ -156,7 +143,7 @@ public class StackCallProcessor {
         return treeNode;
     }
 
-    private List<ArtifactData> findAllCallers(CtMethod<?> targetMethod, Map<String, ArtifactData> visitedMethods) {
+    private List<ArtifactData> findAllCallers(CtExecutable<?> targetMethod, Map<String, ArtifactData> visitedMethods) {
 
         List<ArtifactData> callers = new ArrayList<>();
 
@@ -171,7 +158,7 @@ public class StackCallProcessor {
             }
 
             for (CtInvocation<?> invocation : invocations) {
-                if (isCallingTargetMethod(invocation, targetMethod)) {
+                if (isCallingTargetExecutable(invocation, targetMethod)) {
                     // Encontramos un caller, agregar al árbol recursivamente
                     ArtifactData callerNode = buildCallTree(invocation, visitedMethods);
                     callers.add(callerNode);
@@ -182,46 +169,10 @@ public class StackCallProcessor {
         return callers;
     }
 
-    private boolean isCallingTargetMethod(CtInvocation<?> invocation, CtMethod<?> targetMethod) {
-        // Verificar nombre del método
-        if (!invocation.getExecutable().getSimpleName().equals(targetMethod.getSimpleName())) {
-            return false;
-        }
-
-        // Verificar clase declarante
-        CtTypeReference<?> invocationDeclaringType = invocation.getExecutable().getDeclaringType();
-        CtType<?> targetDeclaringType = targetMethod.getDeclaringType();
-
-        if (invocationDeclaringType != null && targetDeclaringType != null) {
-            String invocationClassName = invocationDeclaringType.getQualifiedName();
-            String targetClassName = targetDeclaringType.getQualifiedName();
-
-            if (!invocationClassName.equals(targetClassName)) {
-                return false;
-            }
-        }
-
-        // Verificar parámetros (número y tipos si es posible)
-        List<CtTypeReference<?>> invocationParams = invocation.getExecutable().getParameters();
-        List<CtParameter<?>> targetParams = targetMethod.getParameters();
-
-        if (invocationParams.size() != targetParams.size()) {
-            return false;
-        }
-
-        // Verificación más detallada de tipos de parámetros
-        for (int i = 0; i < invocationParams.size(); i++) {
-            CtTypeReference<?> invocationParam = invocationParams.get(i);
-            CtTypeReference<?> targetParam = targetParams.get(i).getType();
-
-            if (invocationParam != null && targetParam != null) {
-                if (!invocationParam.getQualifiedName().equals(targetParam.getQualifiedName())) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
+    private boolean isCallingTargetExecutable(CtInvocation<?> invocation, CtExecutable<?> targetExecutable) {
+        // La forma más robusta de comparar es usando las referencias, que contienen la
+        // firma completa.
+        return targetExecutable.getReference().equals(invocation.getExecutable());
     }
 
     private void extractAllPaths(ArtifactData treeNode, List<Map<String, Object>> currentPath,
