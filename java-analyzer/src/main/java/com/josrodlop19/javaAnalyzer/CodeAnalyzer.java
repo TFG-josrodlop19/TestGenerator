@@ -38,7 +38,7 @@ public class CodeAnalyzer {
     private String targetName;
     private String pomPath;
 
-    @Setter(AccessLevel.NONE)
+    @Setter(AccessLevel.PRIVATE)
     private CtModel AST;
 
     // Attribute to store target method invocation
@@ -50,7 +50,6 @@ public class CodeAnalyzer {
     @Setter(AccessLevel.PRIVATE)
     private Map<String, Object> artifactData;
 
-    // Nuevo atributo para almacenar la pila de llamadas
     @Setter(AccessLevel.PRIVATE)
     private List<Map<String, Object>> callStack;
 
@@ -74,7 +73,7 @@ public class CodeAnalyzer {
         findFunctionInvocation();
 
         this.artifactData.put("artifactData", extractArtifactData(this.targetInvocation));
-        extractCallStack(); // Nuevo método para extraer la pila de llamadas
+        extractCallStack();
     }
 
     private void extractAST() {
@@ -91,7 +90,7 @@ public class CodeAnalyzer {
         createSpoonClassLoader(classpath);
 
         launcher.buildModel();
-        this.AST = launcher.getModel();
+        this.setAST(launcher.getModel());
     }
 
     private void createSpoonClassLoader(String[] classpath) {
@@ -110,13 +109,13 @@ public class CodeAnalyzer {
     private void findFunctionInvocation() {
         String canonicalTargetPath;
         try {
-            canonicalTargetPath = new File(this.filePath).getCanonicalPath();
+            canonicalTargetPath = new File(this.getFilePath()).getCanonicalPath();
         } catch (IOException e) {
-            throw new RuntimeException("Error obtaining canonical path for the target file: " + this.filePath, e);
+            throw new RuntimeException("Error obtaining canonical path for the target file: " + this.getFilePath(), e);
         }
 
         // Iterate through all types (classes) in the AST to find the target invocation
-        for (CtType<?> node : this.AST.getAllTypes()) {
+        for (CtType<?> node : this.getAST().getAllTypes()) {
             if (node.getPosition().isValidPosition()) {
                 try {
                     String nodeCanonicalPath = node.getPosition().getFile().getCanonicalPath();
@@ -129,7 +128,7 @@ public class CodeAnalyzer {
                         CtInvocation<?> foundInvocation = findFunctionInsideCtType(invocationsInClass);
 
                         if (foundInvocation != null) {
-                            this.targetInvocation = foundInvocation;
+                            this.setTargetInvocation(foundInvocation);
                             break;
                         }
                     }
@@ -146,9 +145,9 @@ public class CodeAnalyzer {
         }
     }
 
-    private CtInvocation<?> findFunctionInsideCtType(List<CtInvocation<?>> allInvocations) {
+    private CtInvocation<?> findFunctionInsideCtType(List<CtInvocation<?>> allInvocationsInNode) {
         CtInvocation<?> foundInvocation = null;
-        for (CtInvocation<?> invocation : allInvocations) {
+        for (CtInvocation<?> invocation : allInvocationsInNode) {
             if (invocation.getPosition().isValidPosition() &&
                     invocation.getPosition().getLine() == this.targetLine &&
                     invocation.getExecutable().getSimpleName().equals(this.targetName)) {
@@ -159,54 +158,55 @@ public class CodeAnalyzer {
         return foundInvocation;
     }
 
-    private Map<String, Object> extractArtifactData(CtInvocation<?> invocation) {
-        if (this.targetInvocation == null) {
+    private ArtifactData extractArtifactData(CtInvocation<?> invocation) {
+        if (invocation == null) {
             throw new IllegalStateException("Target invocation not found.");
         }
 
-        Map<String, Object> data = new LinkedHashMap<>();
+        ArtifactData data = new ArtifactData();
 
         // Get class name
-        data.put("className",
-                this.targetInvocation.getPosition().getFile().getName().replace(".java", ""));
+        data.setClassName(invocation.getPosition().getFile().getName()
+                .replace(".java", ""));
+        data.setLineNumber(invocation.getPosition().getLine());
 
         // Get artifact type and name
-        data.put("artifactType", this.targetInvocation.getClass().getSimpleName());
-        data.put("methodName", this.targetInvocation.getExecutable().getSimpleName());
+        data.setNodeType(invocation.getClass().getSimpleName());
+        data.setArtifactName(invocation.getExecutable().getSimpleName());
 
         // Get qualifier type
-        CtExpression<?> target = this.targetInvocation.getTarget();
+        CtExpression<?> target = invocation.getTarget();
         if (target != null) {
             CtTypeReference<?> qualifierTypeRef = target.getType();
             String qualifierType = (qualifierTypeRef != null) ? qualifierTypeRef.getQualifiedName() : "UNRESOLVED_TYPE";
-            data.put("qualifierType", qualifierType);
-            data.put("qualifierNameInCode", target.toString());
+            data.setQualifierType(qualifierType);
+            data.setQualifierName(target.toString());
         } else {
             // If there is no target, it is a local call. EX: myMethod();
-            data.put("qualifierType", "Local call");
+            data.setQualifierType("Local call");
         }
 
         // Get wheather the method is static or not
-        boolean isStatic = this.targetInvocation.getExecutable().isStatic();
-        data.put("isStatic", isStatic);
+        boolean isStatic = invocation.getExecutable().isStatic();
+        data.setIsStatic(isStatic);
 
         // Get parameters
         List<Map<String, String>> paramsData = new ArrayList<>();
 
         // Get the function declaration to extract parameter names and types
-        CtExecutable<?> functionDeclaration = this.targetInvocation.getExecutable().getDeclaration();
-        List<CtExpression<?>> arguments = this.targetInvocation.getArguments();
+        CtExecutable<?> functionDeclaration = invocation.getExecutable().getDeclaration();
+        List<CtExpression<?>> arguments = invocation.getArguments();
 
         if (functionDeclaration != null) {
             // Use Spoon declaration to extract parameter names and types
             ParamsProcessor.extractParamsFromSpoonDeclaration(functionDeclaration, arguments, paramsData);
         } else {
             // If no declaration is found, use reflection
-            ParamsProcessor.extractParamsFromReflection(arguments, paramsData, this.targetInvocation,
-                    this.targetName, this.spoonClassLoader);
+            ParamsProcessor.extractParamsFromReflection(arguments, paramsData, invocation,
+                    invocation.getExecutable().getSimpleName(), this.spoonClassLoader);
         }
 
-        data.put("parameters", paramsData);
+        data.setParameters(paramsData);
         return data;
     }
 
@@ -240,7 +240,7 @@ public class CodeAnalyzer {
             Map<String, List<CtInvocation<?>>> methodInvocations) {
 
         // Recorrer todos los tipos en el AST
-        for (CtType<?> type : this.AST.getAllTypes()) {
+        for (CtType<?> type : this.getAST().getAllTypes()) {
             // Procesar todos los métodos del tipo
             for (CtMethod<?> method : type.getMethods()) {
                 String methodKey = createMethodKey(method);
