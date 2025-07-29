@@ -14,6 +14,7 @@ public class ArtifactData {
     private String filePath;
     private String className;
     private int lineNumber;
+    private String packageName;
 
     // Method atributes
     private String nodeType;

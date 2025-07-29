@@ -5,6 +5,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -18,13 +19,21 @@ import spoon.reflect.reference.CtTypeReference;
 
 public class ParamsProcessor {
     
+    private static final int MAX_RECURSION_DEPTH = 5;
+    
     public static List<Map<String, String>> extractParamsFromSpoonDeclaration(CtExecutable<?> functionDeclaration,
             List<CtExpression<?>> arguments) {
+        return extractParamsFromSpoonDeclaration(functionDeclaration, arguments, 0);
+    }
+    
+    public static List<Map<String, String>> extractParamsFromSpoonDeclaration(CtExecutable<?> functionDeclaration,
+            List<CtExpression<?>> arguments, int recursionDepth) {
         List<Map<String, String>> paramsData = new ArrayList<>();
+        
         for (int i = 0; i < arguments.size(); i++) {
             CtExpression<?> param = arguments.get(i);
             CtTypeReference<?> paramType = param.getType();
-            Map<String, String> paramInfo = new HashMap<>();
+            Map<String, String> paramInfo = new LinkedHashMap<>();
             paramInfo.put("typeAtCall", (paramType != null) ? paramType.getQualifiedName() : "UNRESOLVED_TYPE");
             
             List<CtParameter<?>> declarationParams = functionDeclaration.getParameters();
@@ -33,9 +42,27 @@ public class ParamsProcessor {
                 paramInfo.put("parameterName", declarationParams.get(i).getSimpleName());
                 paramInfo.put("typeAtDeclaration",
                         (declarationType != null) ? declarationType.getQualifiedName() : "UNRESOLVED_TYPE");
+                
+                // Extraer información recursiva de constructores
+                if (recursionDepth < MAX_RECURSION_DEPTH && declarationType != null) {
+                    List<Map<String, Object>> constructorInfo = OutputDataBuilder.extractConstructorInfo(declarationType, recursionDepth + 1);
+                    if (!constructorInfo.isEmpty()) {
+                        paramInfo.put("parameterConstructors", constructorInfo.toString());
+                    }
+                }
             } else {
                 paramInfo.put("possibleArray", "true");
             }
+            
+            // También extraer constructores del tipo en la llamada si es diferente
+            if (recursionDepth < MAX_RECURSION_DEPTH && paramType != null && 
+                !paramInfo.get("typeAtCall").equals(paramInfo.get("typeAtDeclaration"))) {
+                List<Map<String, Object>> callTypeConstructors = OutputDataBuilder.extractConstructorInfo(paramType, recursionDepth + 1);
+                if (!callTypeConstructors.isEmpty()) {
+                    paramInfo.put("callTypeConstructors", callTypeConstructors.toString());
+                }
+            }
+            
             paramsData.add(paramInfo);
         }
         return paramsData;
@@ -43,52 +70,52 @@ public class ParamsProcessor {
 
     public static List<Map<String, String>> extractParamsFromReflection(List<CtExpression<?>> arguments,
             CtAbstractInvocation<?> invocation, String targetName) {
+        return extractParamsFromReflection(arguments, invocation, targetName, 0);
+    }
+    
+    public static List<Map<String, String>> extractParamsFromReflection(List<CtExpression<?>> arguments,
+            CtAbstractInvocation<?> invocation, String targetName, int recursionDepth) {
         List<Map<String, String>> paramsData = new ArrayList<>();
         
         try {
             // Verificar el tipo de invocación
             if (invocation instanceof CtInvocation<?>) {
-                return extractParamsFromMethodReflection(arguments, (CtInvocation<?>) invocation, targetName);
+                return extractParamsFromMethodReflection(arguments, (CtInvocation<?>) invocation, targetName, recursionDepth);
             } else if (invocation instanceof CtConstructorCall<?>) {
-                return extractParamsFromConstructorReflection(arguments, (CtConstructorCall<?>) invocation, targetName);
+                return extractParamsFromConstructorReflection(arguments, (CtConstructorCall<?>) invocation, targetName, recursionDepth);
             } else {
                 // Fallback para tipos no soportados
-                extractParamsFromReflectionFallback(arguments, paramsData);
+                extractParamsFromReflectionFallback(arguments, paramsData, recursionDepth);
                 return paramsData;
             }
         } catch (Exception e) {
             System.err.println("Error usando reflection: " + e.getMessage());
-            extractParamsFromReflectionFallback(arguments, paramsData);
+            extractParamsFromReflectionFallback(arguments, paramsData, recursionDepth);
         }
         
         return paramsData;
     }
 
     private static List<Map<String, String>> extractParamsFromMethodReflection(List<CtExpression<?>> arguments,
-            CtInvocation<?> invocation, String targetName) {
+            CtInvocation<?> invocation, String targetName, int recursionDepth) {
         List<Map<String, String>> paramsData = new ArrayList<>();
         
         try {
-            // Target = object on which the method is called. F.E: in
-            // myObject.myMethod(arg1, arg2) target = myObject
             CtExpression<?> target = invocation.getTarget();
             if (target == null) {
-                // Local call, no target
-                extractParamsFromReflectionFallback(arguments, paramsData);
+                extractParamsFromReflectionFallback(arguments, paramsData, recursionDepth);
                 return paramsData;
             }
             
             CtTypeReference<?> qualifierTypeRef = target.getType();
             if (qualifierTypeRef == null) {
-                extractParamsFromReflectionFallback(arguments, paramsData);
+                extractParamsFromReflectionFallback(arguments, paramsData, recursionDepth);
                 return paramsData;
             }
             
             String qualifierClassName = qualifierTypeRef.getQualifiedName();
-            // Load class using Spoon's classloader
             Class<?> clazz = SpoonClassLoader.getInstance().getClassLoader().loadClass(qualifierClassName);
             
-            // Get the types of the arguments to get the correct method
             Class<?>[] argTypes = new Class<?>[arguments.size()];
             for (int i = 0; i < arguments.size(); i++) {
                 CtExpression<?> arg = arguments.get(i);
@@ -104,51 +131,73 @@ public class ParamsProcessor {
                 }
             }
             
-            // Look for the method in the class using reflection
             Method method = findMatchingMethod(clazz, targetName, argTypes);
             if (method != null) {
                 Parameter[] parameters = method.getParameters();
                 for (int i = 0; i < arguments.size(); i++) {
                     CtExpression<?> param = arguments.get(i);
                     CtTypeReference<?> paramType = param.getType();
-                    Map<String, String> paramInfo = new HashMap<>();
+                    Map<String, String> paramInfo = new LinkedHashMap<>();
                     paramInfo.put("typeAtCall", (paramType != null) ? paramType.getQualifiedName() : "UNRESOLVED_TYPE");
+                    
                     if (i < parameters.length) {
                         Parameter reflectionParam = parameters[i];
                         paramInfo.put("parameterName", reflectionParam.getName());
                         paramInfo.put("typeAtDeclaration", reflectionParam.getType().getName());
+                        
+                        // Extraer información recursiva de constructores usando reflection
+                        if (recursionDepth < MAX_RECURSION_DEPTH) {
+                            List<Map<String, Object>> constructorInfo = extractConstructorInfoFromClass(
+                                reflectionParam.getType(), recursionDepth + 1);
+                            if (!constructorInfo.isEmpty()) {
+                                paramInfo.put("parameterConstructors", constructorInfo.toString());
+                            }
+                        }
                     } else {
                         paramInfo.put("possibleArray", "true");
                     }
+                    
+                    // También extraer constructores del tipo en la llamada
+                    if (recursionDepth < MAX_RECURSION_DEPTH && paramType != null) {
+                        try {
+                            Class<?> callTypeClass = loadClassFromType(paramType, SpoonClassLoader.getInstance().getClassLoader());
+                            List<Map<String, Object>> callTypeConstructors = extractConstructorInfoFromClass(
+                                callTypeClass, recursionDepth + 1);
+                            if (!callTypeConstructors.isEmpty()) {
+                                paramInfo.put("callTypeConstructors", callTypeConstructors.toString());
+                            }
+                        } catch (Exception e) {
+                            // Ignorar errores en la extracción de constructores del tipo de llamada
+                        }
+                    }
+                    
                     paramsData.add(paramInfo);
                 }
             } else {
-                extractParamsFromReflectionFallback(arguments, paramsData);
+                extractParamsFromReflectionFallback(arguments, paramsData, recursionDepth);
             }
         } catch (Exception e) {
             System.err.println("Error usando reflection para método: " + e.getMessage());
-            extractParamsFromReflectionFallback(arguments, paramsData);
+            extractParamsFromReflectionFallback(arguments, paramsData, recursionDepth);
         }
         
         return paramsData;
     }
 
     private static List<Map<String, String>> extractParamsFromConstructorReflection(List<CtExpression<?>> arguments,
-            CtConstructorCall<?> constructorCall, String targetName) {
+            CtConstructorCall<?> constructorCall, String targetName, int recursionDepth) {
         List<Map<String, String>> paramsData = new ArrayList<>();
         
         try {
-            // Para constructores, obtenemos el tipo que se está construyendo
             CtTypeReference<?> constructedType = constructorCall.getType();
             if (constructedType == null) {
-                extractParamsFromReflectionFallback(arguments, paramsData);
+                extractParamsFromReflectionFallback(arguments, paramsData, recursionDepth);
                 return paramsData;
             }
             
             String className = constructedType.getQualifiedName();
             Class<?> clazz = SpoonClassLoader.getInstance().getClassLoader().loadClass(className);
             
-            // Get the types of the arguments to get the correct constructor
             Class<?>[] argTypes = new Class<?>[arguments.size()];
             for (int i = 0; i < arguments.size(); i++) {
                 CtExpression<?> arg = arguments.get(i);
@@ -164,46 +213,130 @@ public class ParamsProcessor {
                 }
             }
             
-            // Look for the constructor in the class using reflection
             Constructor<?> constructor = findMatchingConstructor(clazz, argTypes);
             if (constructor != null) {
                 Parameter[] parameters = constructor.getParameters();
                 for (int i = 0; i < arguments.size(); i++) {
                     CtExpression<?> param = arguments.get(i);
                     CtTypeReference<?> paramType = param.getType();
-                    Map<String, String> paramInfo = new HashMap<>();
+                    Map<String, String> paramInfo = new LinkedHashMap<>();
                     paramInfo.put("typeAtCall", (paramType != null) ? paramType.getQualifiedName() : "UNRESOLVED_TYPE");
+                    
                     if (i < parameters.length) {
                         Parameter reflectionParam = parameters[i];
                         paramInfo.put("parameterName", reflectionParam.getName());
                         paramInfo.put("typeAtDeclaration", reflectionParam.getType().getName());
+                        
+                        // Extraer información recursiva de constructores
+                        if (recursionDepth < MAX_RECURSION_DEPTH) {
+                            List<Map<String, Object>> constructorInfo = extractConstructorInfoFromClass(
+                                reflectionParam.getType(), recursionDepth + 1);
+                            if (!constructorInfo.isEmpty()) {
+                                paramInfo.put("parameterConstructors", constructorInfo.toString());
+                            }
+                        }
                     } else {
                         paramInfo.put("possibleArray", "true");
                     }
+                    
+                    // También extraer constructores del tipo en la llamada
+                    if (recursionDepth < MAX_RECURSION_DEPTH && paramType != null) {
+                        try {
+                            Class<?> callTypeClass = loadClassFromType(paramType, SpoonClassLoader.getInstance().getClassLoader());
+                            List<Map<String, Object>> callTypeConstructors = extractConstructorInfoFromClass(
+                                callTypeClass, recursionDepth + 1);
+                            if (!callTypeConstructors.isEmpty()) {
+                                paramInfo.put("callTypeConstructors", callTypeConstructors.toString());
+                            }
+                        } catch (Exception e) {
+                            // Ignorar errores en la extracción de constructores del tipo de llamada
+                        }
+                    }
+                    
                     paramsData.add(paramInfo);
                 }
             } else {
-                extractParamsFromReflectionFallback(arguments, paramsData);
+                extractParamsFromReflectionFallback(arguments, paramsData, recursionDepth);
             }
         } catch (Exception e) {
             System.err.println("Error usando reflection para constructor: " + e.getMessage());
-            extractParamsFromReflectionFallback(arguments, paramsData);
+            extractParamsFromReflectionFallback(arguments, paramsData, recursionDepth);
         }
         
         return paramsData;
     }
 
     private static void extractParamsFromReflectionFallback(List<CtExpression<?>> arguments,
-            List<Map<String, String>> paramsData) {
+            List<Map<String, String>> paramsData, int recursionDepth) {
         for (int i = 0; i < arguments.size(); i++) {
             CtExpression<?> param = arguments.get(i);
             CtTypeReference<?> paramType = param.getType();
-            Map<String, String> paramInfo = new HashMap<>();
+            Map<String, String> paramInfo = new LinkedHashMap<>();
             paramInfo.put("typeAtCall", (paramType != null) ? paramType.getQualifiedName() : "UNRESOLVED_TYPE");
             paramInfo.put("typeAtDeclaration", "UNRESOLVED_TYPE");
             paramInfo.put("parameterName", "param" + i);
+            
+            // Intentar extraer constructores incluso en el fallback
+            if (recursionDepth < MAX_RECURSION_DEPTH && paramType != null) {
+                List<Map<String, Object>> constructorInfo = OutputDataBuilder.extractConstructorInfo(paramType, recursionDepth + 1);
+                if (!constructorInfo.isEmpty()) {
+                    paramInfo.put("fallbackConstructors", constructorInfo.toString());
+                }
+            }
+            
             paramsData.add(paramInfo);
         }
+    }
+    
+    /**
+     * Extrae información de constructores de una clase usando reflection
+     */
+    private static List<Map<String, Object>> extractConstructorInfoFromClass(Class<?> clazz, int recursionDepth) {
+        List<Map<String, Object>> constructorsInfo = new ArrayList<>();
+        
+        if (clazz == null || recursionDepth >= MAX_RECURSION_DEPTH || isPrimitiveOrBasicType(clazz.getName())) {
+            return constructorsInfo;
+        }
+        
+        try {
+            Constructor<?>[] constructors = clazz.getConstructors();
+            
+            for (Constructor<?> constructor : constructors) {
+                Map<String, Object> constructorInfo = new LinkedHashMap<>();
+                constructorInfo.put("className", clazz.getSimpleName());
+                constructorInfo.put("qualifiedName", clazz.getName());
+                constructorInfo.put("isPublic", java.lang.reflect.Modifier.isPublic(constructor.getModifiers()));
+                constructorInfo.put("parameterCount", constructor.getParameterCount());
+                
+                // Información detallada de parámetros
+                List<Map<String, Object>> paramDetails = new ArrayList<>();
+                Parameter[] params = constructor.getParameters();
+                
+                for (Parameter param : params) {
+                    Map<String, Object> paramInfo = new LinkedHashMap<>();
+                    paramInfo.put("name", param.getName());
+                    paramInfo.put("type", param.getType().getName());
+                    
+                    // Recursión: obtener constructores de los parámetros
+                    if (!isPrimitiveOrBasicType(param.getType().getName())) {
+                        List<Map<String, Object>> nestedConstructors = extractConstructorInfoFromClass(
+                            param.getType(), recursionDepth + 1);
+                        if (!nestedConstructors.isEmpty()) {
+                            paramInfo.put("parameterConstructors", nestedConstructors);
+                        }
+                    }
+                    
+                    paramDetails.add(paramInfo);
+                }
+                
+                constructorInfo.put("parameters", paramDetails);
+                constructorsInfo.add(constructorInfo);
+            }
+        } catch (Exception e) {
+            System.err.println("Error extracting constructor info from class " + clazz.getName() + ": " + e.getMessage());
+        }
+        
+        return constructorsInfo;
     }
 
     // Método auxiliar para encontrar un constructor que coincida
@@ -306,5 +439,21 @@ public class ParamsProcessor {
                 (primitive == char.class && wrapper == Character.class) ||
                 (primitive == byte.class && wrapper == Byte.class) ||
                 (primitive == short.class && wrapper == Short.class);
+    }
+    
+    /**
+     * Verifica si un tipo es primitivo o un tipo básico de Java que no necesita análisis recursivo
+     */
+    private static boolean isPrimitiveOrBasicType(String typeName) {
+        return typeName.equals("int") || typeName.equals("long") || typeName.equals("double") || 
+               typeName.equals("float") || typeName.equals("boolean") || typeName.equals("char") ||
+               typeName.equals("byte") || typeName.equals("short") || typeName.equals("void") ||
+               typeName.equals("java.lang.String") || typeName.equals("java.lang.Integer") ||
+               typeName.equals("java.lang.Long") || typeName.equals("java.lang.Double") ||
+               typeName.equals("java.lang.Float") || typeName.equals("java.lang.Boolean") ||
+               typeName.equals("java.lang.Character") || typeName.equals("java.lang.Byte") ||
+               typeName.equals("java.lang.Short") || typeName.equals("java.lang.Object") ||
+               typeName.startsWith("java.util.") || typeName.startsWith("java.io.") ||
+               typeName.startsWith("java.net.") || typeName.startsWith("java.time.");
     }
 }

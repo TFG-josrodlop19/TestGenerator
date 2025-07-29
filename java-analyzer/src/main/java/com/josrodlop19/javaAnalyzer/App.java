@@ -14,7 +14,7 @@ public class App {
 
         String pomPath = "/home/josue/universidad/TFG/TestGenerator/vulnerableCodeExamples/jacksonDatabind-CWE-502";
         String filePath = "/home/josue/universidad/TFG/TestGenerator/vulnerableCodeExamples/jacksonDatabind-CWE-502/src/main/java/com/example/JsonProcessor.java";
-        int targetLine = 23;
+        int targetLine = 24;
         String targetName = "readValue";
 
         // Create an instance of CodeAnalyzer

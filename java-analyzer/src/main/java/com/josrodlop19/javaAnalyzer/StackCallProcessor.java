@@ -215,6 +215,7 @@ public class StackCallProcessor {
         nodeInfo.put("invocationClass", treeNode.getClassName());
         nodeInfo.put("fileName", treeNode.getFilePath());
         nodeInfo.put("lineNumber", treeNode.getLineNumber());
+        nodeInfo.put("packageName", treeNode.getPackageName());
         nodeInfo.put("arguments", treeNode.getParameters());
 
         List<Map<String, Object>> newPath = new ArrayList<>(currentPath);
