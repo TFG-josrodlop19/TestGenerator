@@ -1,5 +1,5 @@
 from java_analyzer.spoon_reader import get_artifact_info
-# from test_generator.generator import generate_fuzzer
+from test_generator.generator import generate_fuzzer
 import argparse
 
 if __name__ == "__main__":
@@ -27,7 +27,8 @@ if __name__ == "__main__":
     
     print(function_info)
     
-    # generar_fuzzer_desde_plantilla(
-    #     data=function_info,
-    #     exit_directory="fuzzers_generados"
-    # )
+    generate_fuzzer(
+        data=function_info,
+        # TODO: espcify the output directory for generated fuzzers in production
+        exit_directory="fuzzers_generados"
+    )

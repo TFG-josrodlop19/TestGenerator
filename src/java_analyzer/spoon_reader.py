@@ -29,11 +29,3 @@ def get_artifact_info(pom_path: str, file_path: str, line_number: int, artifact_
             print("--- Spoon error ---")
             print(e.stderr)
         return None
-
-if __name__ == "__main__":
-    # Analizamos la llamada a 'processInput' en la línea 10 del fichero especificado
-    info = get_artifact_info("vulnerableCodeExamples/jacksonDatabind-CWE-502","vulnerableCodeExamples/jacksonDatabind-CWE-502/src/main/java/com/example/JsonProcessor.java", 23, "readValue")
-
-    if info:
-        print("\n--- Información del Artefacto Encontrado ---")
-        print(json.dumps(info, indent=2))
