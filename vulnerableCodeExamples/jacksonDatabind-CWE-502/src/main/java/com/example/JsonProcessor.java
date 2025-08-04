@@ -11,7 +11,7 @@ public class JsonProcessor {
     public JsonProcessor() {
         this.mapper = new ObjectMapper();
         // LA VULNERABILIDAD SE CONFIGURA AQUÍ
-        // this.mapper.enableDefaultTyping();
+        this.mapper.enableDefaultTyping();
     }
 
     /**
@@ -20,7 +20,10 @@ public class JsonProcessor {
     public void processJson(String jsonInput) throws IOException {
         System.out.println("[Processor] Procesando JSON: " + jsonInput);
         // El método vulnerable es llamado aquí
-        this.mapper.readValue(jsonInput, Object.class);
+        if (true) {
+            this.mapper.readValue(jsonInput, Object.class);
+        }
+        
         System.out.println("[Processor] JSON procesado con éxito.");
     }
 }

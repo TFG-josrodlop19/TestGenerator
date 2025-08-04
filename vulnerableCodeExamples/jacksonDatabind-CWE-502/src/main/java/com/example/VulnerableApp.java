@@ -26,5 +26,9 @@ public class VulnerableApp {
             System.err.println("!!! EL ATAQUE HA CAUSADO UN ERROR (O HA FUNCIONADO) !!!");
             e.printStackTrace();
         }
+
+        User user = new User(123, "Alice");
+        SecondMethodCall secondCall = new SecondMethodCall(user);
+        secondCall.secondVulnerableMethodCall();
     }
 }
