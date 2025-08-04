@@ -1,6 +1,7 @@
 # Exclusion from project files
 fuzzers_generados/
 .vscode/
+src/spoon_exit_example.json
 
 
 # Byte-compiled / optimized / DLL files
