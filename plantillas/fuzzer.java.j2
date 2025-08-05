@@ -1,34 +1,54 @@
-package {{ paquete_fuzzer }};
+package com.example.fuzzers;
 
 import com.code_intelligence.jazzer.api.FuzzedDataProvider;
-import {{ paquete_target }}.{{ clase_target }};
-{% if importaciones_adicionales %}
-// Importaciones adicionales generadas dinámicamente
-{% for import_path in importaciones_adicionales %}
-import {{ import_path }};
-{% endfor %}
-{% endif %}
+import {{ qualifierType }}; // Importa el tipo del objeto
+import java.io.IOException; // Imports comunes para excepciones
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 /**
- * Fuzzer generado automáticamente para la clase {{ clase_target }}.
- * Objetivo: método {{ metodo_target }}.
+ * Fuzzer generado automáticamente para la clase {{ className }}.
+ * Objetivo: método {{ artifactName }} en la línea {{ lineNumber }}.
  */
-public class {{ clase_fuzzer }} {
+public class {{ className }}{{ artifactName | capitalize }}Fuzzer {
+
+    // Clase interna simple para usarla como objetivo de deserialización
+    // cuando un parámetro es de tipo java.lang.Class.
+    public static class FuzzableBean {
+        public String fuzzedString;
+        public int fuzzedInt;
+    }
+
     public static void fuzzerTestOneInput(FuzzedDataProvider dataProvider) {
         
-        {% for param in params %}
-        {{ param.type }} {{ param.name }} = dataProvider.{{ param.fuzzing_function }};
+        // --- Creación de la instancia (si no es estático) ---
+        {% if not isStatic %}
+        {{ qualifierType_simple_name }} {{ instance_name }} = new {{ qualifierType_simple_name }}();
+        {% endif %}
+
+        // --- Generación de parámetros ---
+        {% for param in parameters %}
+        {% if param.typeAtDeclaration == "java.lang.Class" %}
+        // Caso especial: El fuzzer no puede generar un tipo de clase aleatorio.
+        // Usamos una clase POJO simple y predefinida como un objetivo de fuzzing válido.
+        {{ param.type }} {{ param.parameterName }} = FuzzableBean.class;
+        {% else %}
+        {{ param.type }} {{ param.parameterName }} = dataProvider.{{ param.fuzz_method }};
+        {% endif %}
         {% endfor %}
 
+        // --- Llamada al método objetivo ---
         try {
-            // Se asume un método estático. Veremos cómo mejorar esto.
-            {{ clase_target }}.{{ metodo_target }}({{ params | map(attribute='name') | join(', ') }});
+            {% if isStatic %}
+            // Llamada estática
+            {{ qualifierType_simple_name }}.{{ artifactName }}({{ parameters | map(attribute='parameterName') | join(', ') }});
+            {% else %}
+            // Llamada de instancia
+            {{ instance_name }}.{{ artifactName }}({{ parameters | map(attribute='parameterName') | join(', ') }});
+            {% endif %}
 
         } catch (Exception e) {
-            // Es buena práctica no silenciar todas las excepciones.
-            // Si esperas una excepción específica (ej. IllegalArgumentException),
-            // atrápala explícitamente y deja que las inesperadas fallen.
-            // Un fallo (crash) es un resultado valioso en fuzzing.
+            // Opcional: puedes querer ver otras excepciones inesperadas
+            // e.g., throw new RuntimeException(e);
         }
     }
 }

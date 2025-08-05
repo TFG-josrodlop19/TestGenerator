@@ -24,11 +24,10 @@ if __name__ == "__main__":
         line_number=23,
         artifact_name="readValue"
     )
-    
-    print(function_info)
-    
+    entry_data = function_info.get("allCallPaths")[0][0]
+
     generate_fuzzer(
-        data=function_info,
+        data=entry_data,
         # TODO: espcify the output directory for generated fuzzers in production
         exit_directory="fuzzers_generados"
     )
