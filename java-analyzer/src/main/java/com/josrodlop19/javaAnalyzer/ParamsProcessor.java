@@ -4,7 +4,6 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -304,7 +303,7 @@ public class ParamsProcessor {
             for (Constructor<?> constructor : constructors) {
                 Map<String, Object> constructorInfo = new LinkedHashMap<>();
                 constructorInfo.put("className", clazz.getSimpleName());
-                constructorInfo.put("qualifiedName", clazz.getName());
+                constructorInfo.put("qualifierType", clazz.getName());
                 constructorInfo.put("isPublic", java.lang.reflect.Modifier.isPublic(constructor.getModifiers()));
                 constructorInfo.put("parameterCount", constructor.getParameterCount());
                 

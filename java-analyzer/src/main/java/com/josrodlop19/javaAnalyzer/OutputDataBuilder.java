@@ -150,10 +150,6 @@ public class OutputDataBuilder {
         return treeNode;
     }
 
-    private static List<Map<String, String>> argumentsInfo(CtExecutable<?> executable) {
-        return argumentsInfo(executable, 0);
-    }
-
     private static List<Map<String, String>> argumentsInfo(CtExecutable<?> executable, int recursionDepth) {
         List<CtParameter<?>> arguments = executable.getParameters();
         List<Map<String, String>> argumentsData = new ArrayList<>();
