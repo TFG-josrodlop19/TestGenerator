@@ -27,7 +27,8 @@ public class VulnerableApp {
             e.printStackTrace();
         }
 
-        User user = new User(123, "Alice");
+        Data data = new Data(1);
+        User user = new User(123, "Alice", data);
         SecondMethodCall secondCall = new SecondMethodCall(user);
         secondCall.secondVulnerableMethodCall();
     }

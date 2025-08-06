@@ -1,11 +1,37 @@
+{% macro build_parameter(param, parent_name="", indent_level=2) %}
+{% set indent = " " * (indent_level * 4) %}
+{% set constructor_list = param.constructor or param.parameterConstructors %}
+{% if constructor_list %}
+{% set constructor = constructor_list[0] %}
+{% for nested_param in constructor.parameters %}
+{{ build_parameter(nested_param, parent_name=parent_name + param.name + "_", indent_level=indent_level) }}
+{% endfor %}
+{{ indent }}{{ param.type }} {{ parent_name }}{{ param.name }} = new {{ param.type }}(
+{% for nested_param in constructor.parameters %}
+{{ " " * ((indent_level + 1) * 4) }}{{ parent_name }}{{ param.name }}_{{ nested_param.name }}{% if not loop.last %},{% endif %}
+{% endfor %}
+{{ indent }});
+{% else %}
+{{ indent }}{{ param.type }} {{ parent_name }}{{ param.name }} = dataProvider.{{ param.fuzz_method }};
+{% endif %}
+{% endmacro %}
 package com.example;
 
 import com.code_intelligence.jazzer.api.FuzzedDataProvider;
-// Importa la clase principal que se va a fuzear
 import {{ qualifierType }};
-// Importa los tipos de los parámetros que son objetos complejos
-{% for param in parameters if param.constructor -%}
-import {{ param.type }};
+{% set imports = [] %}
+{% macro find_imports(params) %}
+{% for param in params %}
+{% set constructor_list = param.constructor or param.parameterConstructors %}
+{% if constructor_list %}
+{% if param.type not in imports %}{% set _ = imports.append(param.type) %}{% endif %}
+{{ find_imports(constructor_list[0].parameters) }}
+{% endif %}
+{% endfor %}
+{% endmacro %}
+{{ find_imports(parameters) }}
+{% for import_path in imports|unique %}
+import {{ import_path }};
 {% endfor %}
 import java.io.IOException;
 
@@ -17,46 +43,27 @@ public class {{ className | default(qualifierType_simple_name) }}{{ artifactName
 
     public static void fuzzerTestOneInput(FuzzedDataProvider dataProvider) {
         
-        // --- Creación de la instancia (si el método no es estático ni un constructor) ---
-        {% if not isStatic and nodeType != 'CtConstructorImpl' -%}
-        {{ qualifierType_simple_name }} {{ instance_name }} = new {{ qualifierType_simple_name }}();
+        // --- Creación de la instancia ---
+        {% if not isStatic and nodeType != 'CtConstructorImpl' %}
+        {{ " " * 8 }}{{ qualifierType_simple_name }} {{ instance_name }} = new {{ qualifierType_simple_name }}();
         {% endif %}
 
         // --- Generación de parámetros ---
-        {% for param in parameters -%}
-        {% if param.constructor -%}
-        // CASO COMPLEJO: Es un objeto que necesita ser construido.
-        // 1. Primero, generamos los parámetros para su propio constructor.
-{% for nested_param in param.constructor[0].parameters %}
-        {{ nested_param.type }} {{ param.name }}_{{ nested_param.name }} = dataProvider.{{ nested_param.fuzz_method }};
+{% for param in parameters %}
+{{ build_parameter(param, indent_level=2).strip() }}
 {% endfor %}
-        
-        // 2. Ahora, invocamos a su constructor con los parámetros que acabamos de generar.
-        {{ param.type }} {{ param.name }} = new {{ param.type }}(
-{%- for nested_param in param.constructor[0].parameters %}
-            {{ param.name }}_{{ nested_param.name }}{% if not loop.last %},{% endif %}
-{% endfor %}
-        );
-
-        {% else -%}
-        // CASO SIMPLE: Es un tipo primitivo que podemos generar directamente.
-        {{ param.type }} {{ param.name }} = dataProvider.{{ param.fuzz_method }};
-        {% endif %}
-        {% endfor %}
 
         // --- Llamada al método o constructor objetivo ---
         try {
-            {% if nodeType == 'CtConstructorImpl' -%}
-            // Es la llamada a un constructor
-            new {{ qualifierType_simple_name }}({{ parameters | map(attribute='name') | join(', ') }});
-            {% else -%}
-            // Es la llamada a un método
-            {% if isStatic -%}
-            {{ qualifierType_simple_name }}.{{ artifactName }}({{ parameters | map(attribute='name') | join(', ') }});
-            {% else -%}
-            {{ instance_name }}.{{ artifactName }}({{ parameters | map(attribute='name') | join(', ') }});
+            {% if nodeType == 'CtConstructorImpl' %}
+            {{ " " * 12 }}new {{ qualifierType_simple_name }}({{ parameters | map(attribute='name') | join(', ') }});
+            {% else %}
+            {% if isStatic %}
+            {{ " " * 12 }}{{ qualifierType_simple_name }}.{{ artifactName }}({{ parameters | map(attribute='name') | join(', ') }});
+            {% else %}
+            {{ " " * 12 }}{{ instance_name }}.{{ artifactName }}({{ parameters | map(attribute='name') | join(', ') }});
             {% endif %}
-            {% endif -%}
+            {% endif %}
         } catch (Exception e) {
             // Ignorar excepciones esperadas
         }
