@@ -20,19 +20,19 @@ public class ParamsProcessor {
     
     private static final int MAX_RECURSION_DEPTH = 5;
     
-    public static List<Map<String, String>> extractParamsFromSpoonDeclaration(CtExecutable<?> functionDeclaration,
+    public static List<Map<String, Object>> extractParamsFromSpoonDeclaration(CtExecutable<?> functionDeclaration,
             List<CtExpression<?>> arguments) {
         return extractParamsFromSpoonDeclaration(functionDeclaration, arguments, 0);
     }
     
-    public static List<Map<String, String>> extractParamsFromSpoonDeclaration(CtExecutable<?> functionDeclaration,
+    public static List<Map<String, Object>> extractParamsFromSpoonDeclaration(CtExecutable<?> functionDeclaration,
             List<CtExpression<?>> arguments, int recursionDepth) {
-        List<Map<String, String>> paramsData = new ArrayList<>();
+        List<Map<String, Object>> paramsData = new ArrayList<>();
         
         for (int i = 0; i < arguments.size(); i++) {
             CtExpression<?> param = arguments.get(i);
             CtTypeReference<?> paramType = param.getType();
-            Map<String, String> paramInfo = new LinkedHashMap<>();
+            Map<String, Object> paramInfo = new LinkedHashMap<>();
             paramInfo.put("typeAtCall", (paramType != null) ? paramType.getQualifiedName() : "UNRESOLVED_TYPE");
             
             List<CtParameter<?>> declarationParams = functionDeclaration.getParameters();
@@ -67,14 +67,14 @@ public class ParamsProcessor {
         return paramsData;
     }
 
-    public static List<Map<String, String>> extractParamsFromReflection(List<CtExpression<?>> arguments,
+    public static List<Map<String, Object>> extractParamsFromReflection(List<CtExpression<?>> arguments,
             CtAbstractInvocation<?> invocation, String targetName) {
         return extractParamsFromReflection(arguments, invocation, targetName, 0);
     }
     
-    public static List<Map<String, String>> extractParamsFromReflection(List<CtExpression<?>> arguments,
+    public static List<Map<String, Object>> extractParamsFromReflection(List<CtExpression<?>> arguments,
             CtAbstractInvocation<?> invocation, String targetName, int recursionDepth) {
-        List<Map<String, String>> paramsData = new ArrayList<>();
+        List<Map<String, Object>> paramsData = new ArrayList<>();
         
         try {
             // Verificar el tipo de invocación
@@ -95,10 +95,10 @@ public class ParamsProcessor {
         return paramsData;
     }
 
-    private static List<Map<String, String>> extractParamsFromMethodReflection(List<CtExpression<?>> arguments,
+    private static List<Map<String, Object>> extractParamsFromMethodReflection(List<CtExpression<?>> arguments,
             CtInvocation<?> invocation, String targetName, int recursionDepth) {
-        List<Map<String, String>> paramsData = new ArrayList<>();
-        
+        List<Map<String, Object>> paramsData = new ArrayList<>();
+
         try {
             CtExpression<?> target = invocation.getTarget();
             if (target == null) {
@@ -136,7 +136,7 @@ public class ParamsProcessor {
                 for (int i = 0; i < arguments.size(); i++) {
                     CtExpression<?> param = arguments.get(i);
                     CtTypeReference<?> paramType = param.getType();
-                    Map<String, String> paramInfo = new LinkedHashMap<>();
+                    Map<String, Object> paramInfo = new LinkedHashMap<>();
                     paramInfo.put("typeAtCall", (paramType != null) ? paramType.getQualifiedName() : "UNRESOLVED_TYPE");
                     
                     if (i < parameters.length) {
@@ -183,9 +183,9 @@ public class ParamsProcessor {
         return paramsData;
     }
 
-    private static List<Map<String, String>> extractParamsFromConstructorReflection(List<CtExpression<?>> arguments,
+    private static List<Map<String, Object>> extractParamsFromConstructorReflection(List<CtExpression<?>> arguments,
             CtConstructorCall<?> constructorCall, String targetName, int recursionDepth) {
-        List<Map<String, String>> paramsData = new ArrayList<>();
+        List<Map<String, Object>> paramsData = new ArrayList<>();
         
         try {
             CtTypeReference<?> constructedType = constructorCall.getType();
@@ -218,7 +218,7 @@ public class ParamsProcessor {
                 for (int i = 0; i < arguments.size(); i++) {
                     CtExpression<?> param = arguments.get(i);
                     CtTypeReference<?> paramType = param.getType();
-                    Map<String, String> paramInfo = new LinkedHashMap<>();
+                    Map<String, Object> paramInfo = new LinkedHashMap<>();
                     paramInfo.put("typeAtCall", (paramType != null) ? paramType.getQualifiedName() : "UNRESOLVED_TYPE");
                     
                     if (i < parameters.length) {
@@ -266,11 +266,11 @@ public class ParamsProcessor {
     }
 
     private static void extractParamsFromReflectionFallback(List<CtExpression<?>> arguments,
-            List<Map<String, String>> paramsData, int recursionDepth) {
+            List<Map<String, Object>> paramsData, int recursionDepth) {
         for (int i = 0; i < arguments.size(); i++) {
             CtExpression<?> param = arguments.get(i);
             CtTypeReference<?> paramType = param.getType();
-            Map<String, String> paramInfo = new LinkedHashMap<>();
+            Map<String, Object> paramInfo = new LinkedHashMap<>();
             paramInfo.put("typeAtCall", (paramType != null) ? paramType.getQualifiedName() : "UNRESOLVED_TYPE");
             paramInfo.put("typeAtDeclaration", "UNRESOLVED_TYPE");
             paramInfo.put("parameterName", "param" + i);
@@ -305,7 +305,6 @@ public class ParamsProcessor {
                 constructorInfo.put("className", clazz.getSimpleName());
                 constructorInfo.put("qualifierType", clazz.getName());
                 constructorInfo.put("isPublic", java.lang.reflect.Modifier.isPublic(constructor.getModifiers()));
-                constructorInfo.put("parameterCount", constructor.getParameterCount());
                 
                 // Información detallada de parámetros
                 List<Map<String, Object>> paramDetails = new ArrayList<>();

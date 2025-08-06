@@ -57,7 +57,7 @@ public class OutputDataBuilder {
         data.setIsStatic(isStatic);
 
         // Get parameters with recursive constructor information
-        List<Map<String, String>> paramsData;
+        List<Map<String, Object>> paramsData;
         CtExecutable<?> functionDeclaration = invocation.getExecutable().getDeclaration();
         List<CtExpression<?>> arguments = invocation.getArguments();
 
@@ -91,7 +91,7 @@ public class OutputDataBuilder {
         treeNode.setIsPublic(method.isPublic());
 
         // Get parameters with recursive constructor information
-        List<Map<String, String>> paramsData = argumentsInfo(method, recursionDepth);
+        List<Map<String, Object>> paramsData = argumentsInfo(method, recursionDepth);
         treeNode.setParameters(paramsData);
 
         return treeNode;
@@ -112,7 +112,7 @@ public class OutputDataBuilder {
         treeNode.setQualifierName(constructor.getDeclaringType().getSimpleName());
 
         // Get parameters with recursive constructor information
-        List<Map<String, String>> paramsData = argumentsInfo(constructor, recursionDepth);
+        List<Map<String, Object>> paramsData = argumentsInfo(constructor, recursionDepth);
         treeNode.setParameters(paramsData);
 
         return treeNode;
@@ -134,7 +134,7 @@ public class OutputDataBuilder {
         treeNode.setQualifierType(invocation.getExecutable().getDeclaringType().getSimpleName());
 
         // Get parameters with recursive constructor information
-        List<Map<String, String>> paramsData;
+        List<Map<String, Object>> paramsData;
         CtExecutable<?> functionDeclaration = invocation.getExecutable().getDeclaration();
         List<CtExpression<?>> arguments = invocation.getArguments();
 
@@ -150,13 +150,13 @@ public class OutputDataBuilder {
         return treeNode;
     }
 
-    private static List<Map<String, String>> argumentsInfo(CtExecutable<?> executable, int recursionDepth) {
+    private static List<Map<String, Object>> argumentsInfo(CtExecutable<?> executable, int recursionDepth) {
         List<CtParameter<?>> arguments = executable.getParameters();
-        List<Map<String, String>> argumentsData = new ArrayList<>();
+        List<Map<String, Object>> argumentsData = new ArrayList<>();
 
         for (int i = 0; i < arguments.size(); i++) {
             CtParameter<?> arg = arguments.get(i);
-            Map<String, String> argInfo = new LinkedHashMap<>();
+            Map<String, Object> argInfo = new LinkedHashMap<>();
             argInfo.put("position", String.valueOf(i));
             argInfo.put("value", arg.toString());
             argInfo.put("type", arg.getType() != null ? arg.getType().getQualifiedName() : "Unknown");
@@ -166,7 +166,7 @@ public class OutputDataBuilder {
             if (recursionDepth < MAX_RECURSION_DEPTH && arg.getType() != null) {
                 List<Map<String, Object>> constructorInfo = extractConstructorInfo(arg.getType(), recursionDepth + 1);
                 if (!constructorInfo.isEmpty()) {
-                    argInfo.put("constructors", constructorInfo.toString());
+                    argInfo.put("constructor", constructorInfo);
                 }
             }
 
@@ -200,7 +200,6 @@ public class OutputDataBuilder {
                         constructorInfo.put("className", typeRef.getSimpleName());
                         constructorInfo.put("qualifiedName", typeName);
                         constructorInfo.put("isPublic", constructor.isPublic());
-                        constructorInfo.put("parameterCount", constructor.getParameters().size());
 
                         // Información detallada de parámetros
                         List<Map<String, Object>> paramDetails = new ArrayList<>();
