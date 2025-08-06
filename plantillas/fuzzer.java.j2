@@ -1,54 +1,64 @@
 package com.example;
 
 import com.code_intelligence.jazzer.api.FuzzedDataProvider;
-import {{ qualifierType }}; // Importa el tipo del objeto
-import java.io.IOException; // Imports comunes para excepciones
-import com.fasterxml.jackson.core.JsonProcessingException;
+// Importa la clase principal que se va a fuzear
+import {{ qualifierType }};
+// Importa los tipos de los parámetros que son objetos complejos
+{% for param in parameters if param.constructor -%}
+import {{ param.type }};
+{% endfor %}
+import java.io.IOException;
 
 /**
- * Fuzzer generado automáticamente para la clase {{ className }}.
- * Objetivo: método {{ artifactName }} en la línea {{ lineNumber }}.
+ * Fuzzer generado para la clase {{ className }}.
+ * Objetivo: {% if artifactName %}método {{ artifactName }}{% else %}constructor{% endif %} en la línea {{ lineNumber }}.
  */
-public class {{ className }}{{ artifactName | capitalize }}Fuzzer {
-
-    // Clase interna simple para usarla como objetivo de deserialización
-    // cuando un parámetro es de tipo java.lang.Class.
-    public static class FuzzableBean {
-        public String fuzzedString;
-        public int fuzzedInt;
-    }
+public class {{ className | default(qualifierType_simple_name) }}{{ artifactName | default("Constructor") | capitalize }}Fuzzer {
 
     public static void fuzzerTestOneInput(FuzzedDataProvider dataProvider) {
         
-        // --- Creación de la instancia (si no es estático) ---
-        {% if not isStatic %}
+        // --- Creación de la instancia (si el método no es estático ni un constructor) ---
+        {% if not isStatic and nodeType != 'CtConstructorImpl' -%}
         {{ qualifierType_simple_name }} {{ instance_name }} = new {{ qualifierType_simple_name }}();
         {% endif %}
 
         // --- Generación de parámetros ---
-        {% for param in parameters %}
-        {% if param.typeAtDeclaration == "java.lang.Class" %}
-        // Caso especial: El fuzzer no puede generar un tipo de clase aleatorio.
-        // Usamos una clase POJO simple y predefinida como un objetivo de fuzzing válido.
-        {{ param.type }} {{ param.parameterName }} = FuzzableBean.class;
-        {% else %}
-        {{ param.type }} {{ param.parameterName }} = dataProvider.{{ param.fuzz_method }};
+        {% for param in parameters -%}
+        {% if param.constructor -%}
+        // CASO COMPLEJO: Es un objeto que necesita ser construido.
+        // 1. Primero, generamos los parámetros para su propio constructor.
+{% for nested_param in param.constructor[0].parameters %}
+        {{ nested_param.type }} {{ param.name }}_{{ nested_param.name }} = dataProvider.{{ nested_param.fuzz_method }};
+{% endfor %}
+        
+        // 2. Ahora, invocamos a su constructor con los parámetros que acabamos de generar.
+        {{ param.type }} {{ param.name }} = new {{ param.type }}(
+{%- for nested_param in param.constructor[0].parameters %}
+            {{ param.name }}_{{ nested_param.name }}{% if not loop.last %},{% endif %}
+{% endfor %}
+        );
+
+        {% else -%}
+        // CASO SIMPLE: Es un tipo primitivo que podemos generar directamente.
+        {{ param.type }} {{ param.name }} = dataProvider.{{ param.fuzz_method }};
         {% endif %}
         {% endfor %}
 
-        // --- Llamada al método objetivo ---
+        // --- Llamada al método o constructor objetivo ---
         try {
-            {% if isStatic %}
-            // Llamada estática
-            {{ qualifierType_simple_name }}.{{ artifactName }}({{ parameters | map(attribute='parameterName') | join(', ') }});
-            {% else %}
-            // Llamada de instancia
-            {{ instance_name }}.{{ artifactName }}({{ parameters | map(attribute='parameterName') | join(', ') }});
+            {% if nodeType == 'CtConstructorImpl' -%}
+            // Es la llamada a un constructor
+            new {{ qualifierType_simple_name }}({{ parameters | map(attribute='name') | join(', ') }});
+            {% else -%}
+            // Es la llamada a un método
+            {% if isStatic -%}
+            {{ qualifierType_simple_name }}.{{ artifactName }}({{ parameters | map(attribute='name') | join(', ') }});
+            {% else -%}
+            {{ instance_name }}.{{ artifactName }}({{ parameters | map(attribute='name') | join(', ') }});
             {% endif %}
-
+            {% endif -%}
         } catch (Exception e) {
-            // Opcional: puedes querer ver otras excepciones inesperadas
-            // e.g., throw new RuntimeException(e);
+            // Ignorar excepciones esperadas
         }
     }
 }
