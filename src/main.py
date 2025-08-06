@@ -21,7 +21,7 @@ if __name__ == "__main__":
     function_info = get_artifact_info(
         pom_path="vulnerableCodeExamples/jacksonDatabind-CWE-502",
         file_path="vulnerableCodeExamples/jacksonDatabind-CWE-502/src/main/java/com/example/JsonProcessor.java",
-        line_number=23,
+        line_number=24,
         artifact_name="readValue"
     )
     entry_data = function_info.get("allCallPaths")[0][0]

@@ -184,16 +184,18 @@ public class StackCallProcessor {
 
         // Agregar el nodo actual al path
         Map<String, Object> nodeInfo = new LinkedHashMap<>();
-        nodeInfo.put("type", treeNode.getNodeType());
-        nodeInfo.put("methodName", treeNode.getArtifactName());
+        nodeInfo.put("nodeType", treeNode.getNodeType());
+        nodeInfo.put("artifactName", treeNode.getArtifactName());
         nodeInfo.put("className", treeNode.getClassName());
-        nodeInfo.put("qualifiedClassName", treeNode.getQualifierName());
-        nodeInfo.put("invocationTarget", treeNode.getTarget());
-        nodeInfo.put("invocationClass", treeNode.getClassName());
-        nodeInfo.put("fileName", treeNode.getFilePath());
+        nodeInfo.put("qualifierName", treeNode.getQualifierName());
+        nodeInfo.put("qualifierType", treeNode.getQualifierType());
+        nodeInfo.put("target", treeNode.getTarget());
+        nodeInfo.put("filePath", treeNode.getFilePath());
         nodeInfo.put("lineNumber", treeNode.getLineNumber());
         nodeInfo.put("packageName", treeNode.getPackageName());
-        nodeInfo.put("arguments", treeNode.getParameters());
+        nodeInfo.put("parameters", treeNode.getParameters());
+        nodeInfo.put("isStatic", treeNode.getIsStatic());
+        nodeInfo.put("isPublic", treeNode.getIsPublic());
 
         List<Map<String, Object>> newPath = new ArrayList<>(currentPath);
         newPath.add(nodeInfo);
