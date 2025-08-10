@@ -1,6 +1,9 @@
 #!/bin/bash
 
-# This script installs the necessary dependencies for the project.
-# It checks if the required tools are installed and installs them if not.
+# This script installs and setups the necessary environment for the project.
 
-echo "Installing dependencies..."
+# Install and setup Vexgen
+echo "Installing Vexgen..."
+
+cd vexgen/
+
