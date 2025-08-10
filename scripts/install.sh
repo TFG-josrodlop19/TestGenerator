@@ -204,7 +204,7 @@ show_help() {
 case "\$1" in
     run)
         shift  # Remove 'run' from arguments
-        echo "🐍 Running Autofuzz..."
+        echo "Running Autofuzz..."
         cd "\$PROJECT_DIR"
         "\$PYTHON_EXEC" "\$MAIN_SCRIPT" "\$@"
         ;;
@@ -212,13 +212,13 @@ case "\$1" in
         show_help
         ;;
     "")
-        echo "❌ Error: No command specified"
+        echo "Error: No command specified"
         echo ""
         show_help
         exit 1
         ;;
     *)
-        echo "❌ Error: Unknown command '\$1'"
+        echo "Error: Unknown command '\$1'"
         echo ""
         show_help
         exit 1
