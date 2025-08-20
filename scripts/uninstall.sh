@@ -1,22 +1,21 @@
 #!/bin/bash
-# This script uninstalls the project, cleaning up services, Docker containers, and files.
+# This script uninstalls and removes the Autofuzz project environment.
 
-set -e # Exit immediately if a command exits with a non-zero status.
+set -e
 
-# Verify the script is run as root
 if [ "$EUID" -ne 0 ]; then
   echo "Error: Access denied. Please, run this script with sudo." >&2
   exit 1
 fi
 
-# --- Output colors ---
+# Output colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# --- Pretty print functions ---
+# Pretty print function
 print_status() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
@@ -33,82 +32,138 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# --- Define variables and paths ---
-# This assumes you are running the script from the project's root directory
+# Define variables and paths
 PROJECT_DIR=$(pwd)
 SERVICE_NAME="autofuzz"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+CLI_FILE="/usr/local/bin/autofuzz"
 
-print_status "Starting the uninstallation process for Autofuzz..."
-echo "-----------------------------------------------------"
+print_status "Starting Autofuzz uninstallation..."
 
-# --- 1. Stop and disable the systemd service ---
-print_status "Stopping and disabling the systemd service..."
+# Confirmation prompt
+echo -e "${YELLOW}WARNING: This will completely remove Autofuzz and all its components.${NC}"
+echo "The following actions will be performed:"
+echo "  - Stop and disable the Autofuzz service"
+echo "  - Remove systemd service file"
+echo "  - Remove CLI command"
+echo "  - Remove vexgen directory and containers"
+echo "  - Remove Python virtual environment"
+echo "  - Remove java-analyzer build artifacts"
+echo ""
+echo "System packages (python3, docker-ce, git, maven) will NOT be removed."
+echo ""
+read -p "Are you sure you want to continue? (y/N): " confirm
+
+if [[ ! $confirm =~ ^[Yy]$ ]]; then
+    print_warning "Uninstallation cancelled by user."
+    exit 0
+fi
+
+# Stop and disable the service
 if systemctl is-active --quiet $SERVICE_NAME; then
+    print_status "Stopping Autofuzz service..."
     systemctl stop $SERVICE_NAME
-    print_success "Service stopped."
+    print_success "Autofuzz service stopped."
 else
-    print_warning "Service was not running."
+    print_warning "Autofuzz service was not running."
 fi
 
 if systemctl is-enabled --quiet $SERVICE_NAME; then
+    print_status "Disabling Autofuzz service..."
     systemctl disable $SERVICE_NAME
-    print_success "Service disabled."
+    print_success "Autofuzz service disabled."
 else
-    print_warning "Service was not enabled."
+    print_warning "Autofuzz service was not enabled."
 fi
 
-# --- 2. Remove CLI script and systemd service file ---
-print_status "Removing CLI script and service file..."
-if [ -f "/usr/local/bin/autofuzz" ]; then
-    rm -f /usr/local/bin/autofuzz
-    print_success "CLI script /usr/local/bin/autofuzz removed."
-else
-    print_warning "CLI script not found, skipping."
-fi
-
+# Remove systemd service file
 if [ -f "$SERVICE_FILE" ]; then
-    rm -f "$SERVICE_FILE"
-    print_success "Systemd service file ${SERVICE_FILE} removed."
+    print_status "Removing systemd service file..."
+    rm -f $SERVICE_FILE
+    systemctl daemon-reload
+    print_success "Systemd service file removed."
 else
-    print_warning "Service file not found, skipping."
+    print_warning "Systemd service file not found."
 fi
 
-# Reload systemd to apply changes
-systemctl daemon-reload
-print_success "Systemd daemon reloaded."
+# Remove CLI command
+if [ -f "$CLI_FILE" ]; then
+    print_status "Removing CLI command..."
+    rm -f $CLI_FILE
+    print_success "CLI command removed."
+else
+    print_warning "CLI command file not found."
+fi
 
-# --- 3. Clean and remove Vexgen Docker environment ---
-print_status "Cleaning up Vexgen Docker environment..."
+# Stop and remove vexgen Docker containers and images
 if [ -d "vexgen" ]; then
+    print_status "Stopping and removing vexgen Docker containers..."
     cd vexgen
-    print_status "Bringing down Docker Compose containers and volumes..."
-    # The '--rmi all' flag removes all images used by the services.
-    # The '-v' flag removes named volumes.
-    docker compose down --rmi all -v
+    
+    # Stop containers if running
+    if docker compose ps -q &> /dev/null; then
+        docker compose down --volumes --remove-orphans 2>/dev/null || true
+        print_success "Vexgen containers stopped and removed."
+    else
+        print_warning "No vexgen containers found running."
+    fi
+    
+    # Remove Docker images related to vexgen
+    print_status "Removing vexgen Docker images..."
+    docker images --format "table {{.Repository}}:{{.Tag}}" | grep "vexgen" | xargs -r docker rmi 2>/dev/null || true
+    
     cd ..
     
-    print_status "Removing Vexgen directory..."
+    # Remove vexgen directory
+    print_status "Removing vexgen directory..."
     rm -rf vexgen
-    print_success "Vexgen cleanup complete."
+    print_success "Vexgen directory removed."
 else
-    print_warning "Vexgen directory not found, skipping cleanup."
+    print_warning "Vexgen directory not found."
 fi
 
-# --- 4. Clean Python environment ---
-print_status "Removing Python environment..."
+# Remove Python virtual environment
 if [ -d "venv" ]; then
+    print_status "Removing Python virtual environment..."
     rm -rf venv
-    print_success "Virtual environment 'venv' removed."
+    print_success "Python virtual environment removed."
 else
-    print_warning "Virtual environment not found, skipping."
+    print_warning "Python virtual environment not found."
 fi
 
-# --- 5. Information about system packages ---
-print_warning "This script will NOT uninstall system-level packages like python3, docker, git, or maven."
-print_warning "These are shared dependencies and should be removed manually if you are sure no other application needs them."
-print_warning "Example command: sudo apt purge python3 docker docker-compose git maven"
+# Remove java-analyzer build artifacts
+if [ -d "java-analyzer/target" ]; then
+    print_status "Removing java-analyzer build artifacts..."
+    rm -rf java-analyzer/target
+    print_success "Java-analyzer build artifacts removed."
+else
+    print_warning "Java-analyzer build artifacts not found."
+fi
 
+# Clean up Docker system (optional)
+print_status "Cleaning up Docker system..."
+read -p "Do you want to clean up unused Docker resources (images, containers, networks)? (y/N): " cleanup_docker
 
-echo "-----------------------------------------------------"
-print_success "Uninstallation completed successfully."
+if [[ $cleanup_docker =~ ^[Yy]$ ]]; then
+    docker system prune -f 2>/dev/null || true
+    print_success "Docker system cleaned up."
+else
+    print_warning "Docker system cleanup skipped."
+fi
+
+print_success "Autofuzz uninstallation completed successfully."
+
+# Final status check
+print_status "Final status check:"
+if [ ! -f "$SERVICE_FILE" ] && [ ! -f "$CLI_FILE" ] && [ ! -d "vexgen" ] && [ ! -d "venv" ]; then
+    print_success "All main components successfully removed."
+else
+    print_warning "Some components may still exist. Please check manually:"
+    [ -f "$SERVICE_FILE" ] && echo "  - Service file: $SERVICE_FILE"
+    [ -f "$CLI_FILE" ] && echo "  - CLI file: $CLI_FILE"
+    [ -d "vexgen" ] && echo "  - Vexgen directory"
+    [ -d "venv" ] && echo "  - Python virtual environment"
+fi
+
+print_status "System packages (python3, docker-ce, docker-compose-plugin, git, maven) were preserved."
+print_warning "Remember to remove any remaining project files manually if needed."
