@@ -37,7 +37,7 @@ print_error() {
 # Install necessary packages
 print_status "Installing necessary packages..."
 apt update
-apt install -y python3 docker docker-compose git maven
+apt install -y python3 docker-ce docker-compose-plugin git maven
 
 
 # Define variables and paths
@@ -49,14 +49,12 @@ MAIN_SCRIPT="${PROJECT_DIR}/src/main.py"
 
 # Set Virtual Environment
 print_status "Setting up Python virtual environment..."
-print_status "Setting up Python virtual environment..."
 if [ ! -d "venv" ]; then
     python3 -m venv venv
     print_success "Virtual environment created"
 else
     print_warning "Virtual environment already exists, skipping creation"
 fi
-source venv/bin/activate
 
 # Install Python dependencies
 print_status "Installing Python dependencies..."
@@ -87,7 +85,10 @@ fi
 ## The only changes needed are the values for the variables: GIT_GRAPHQL_API_KEY and NVD_API_KEY
 if [ ! -d "vexgen" ]; then
     print_status "Installing Vexgen..."
-    git clone git@github.com:GermanMT/vexgen.git
+    if ! git clone https://github.com/GermanMT/vexgen.git; then
+        print_error "Failed to clone vexgen repository"
+        exit 1
+    fi
     rm -rf vexgen/.git
     rm -rf vexgen/.github
     print_success "Vexgen cloned successfully."
@@ -104,6 +105,11 @@ if [ ! -d "vexgen" ]; then
     # Update .env file with the provided API keys
     sed -i "s/GIT_GRAPHQL_API_KEY='add_your_api_key'/GITHUB_GRAPHQL_API_KEY='$git_api_key'/" .env
     sed -i "s/NVD_API_KEY='add_your_api_key'/NVD_API_KEY='$nvd_api_key'/" .env
+
+
+    if [ -z "$git_api_key" ] || [ -z "$nvd_api_key" ]; then
+        print_warning "API keys are empty. You can configure them later in vexgen/.env"
+    fi
     
     print_success ".env file configured successfully."
     cd ..
@@ -112,9 +118,7 @@ else
 fi
 # Add pymongo dependency to requirements.txt
 echo -e "\npymongo==4.7.0" >> vexgen/backend/requirements.txt 
-#cd vexgen
-#docker compose up -d --build
-#d ..
+
 
 # Create systemd service file
 print_status "Creating systemd service file..."
@@ -127,19 +131,16 @@ StartLimitIntervalSec=60
 StartLimitBurst=4
 
 [Service]
-Type=oneshot
-RemainAfterExit=true
+Type=simple
 WorkingDirectory=${PROJECT_DIR}
 Environment=COMPOSE_HTTP_TIMEOUT=120
 Environment=DOCKER_CLIENT_TIMEOUT=120
 
-# Script que maneja tanto Vexgen como la aplicación principal
-ExecStart=${PROJECT_DIR}/scripts/autofuzz-service.sh start
-ExecStop=${PROJECT_DIR}/scripts/autofuzz-service.sh stop
-ExecReload=${PROJECT_DIR}/scripts/autofuzz-service.sh restart
+ExecStart=docker compose -f ${PROJECT_DIR}/vexgen/docker-compose.yml up --build
+ExecStop=docker compose -f ${PROJECT_DIR}/vexgen/docker-compose.yml down
 
 # Configuración de usuario y permisos
-User=${USER}
+User=${SUDO_USER:-root}
 Group=docker
 
 # Configuración de reinicio
@@ -156,15 +157,6 @@ WantedBy=multi-user.target
 EOF
 
 print_success "Systemd service file created at ${SERVICE_FILE}."
-
-
-# Configure service management script
-print_status "Configuring service management script..."
-sed -i "s|^PROJECT_DIR=.*|PROJECT_DIR=\"$PROJECT_DIR\"|" scripts/autofuzz-service.sh
-sed -i "s|^PYTHON_EXEC=.*|PYTHON_EXEC=\"$PYTHON_EXEC\"|" scripts/autofuzz-service.sh
-sed -i "s|^MAIN_SCRIPT=.*|MAIN_SCRIPT=\"$MAIN_SCRIPT\"|" scripts/autofuzz-service.sh
-
-chmod +x scripts/autofuzz-service.sh
 
 
 # Enable the service
@@ -231,6 +223,10 @@ chmod +x /usr/local/bin/autofuzz
 # Start the service
 print_status "Starting Autofuzz service..."
 sudo systemctl start $SERVICE_NAME
+
+print_status "Adjusting file ownership for the project directory..."
+chown -R ${SUDO_USER}:${SUDO_GID:-$(id -g $SUDO_USER)} ${PROJECT_DIR}
+print_success "File ownership adjusted."
 
 print_success "Autofuzz service started successfully."
 print_success "Installation and setup completed successfully."
