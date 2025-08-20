@@ -81,6 +81,11 @@ if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/
     exit 1
 fi
 
+print_status "Ensuring user is in docker group..."
+usermod -aG docker ${SUDO_USER}
+print_warning "Note: User may need to log out and back in for docker group changes to take effect."
+
+
 ## Before this step, it is necessary to create a vexgen's .env file by modifying the template.env file.
 ## The only changes needed are the values for the variables: GIT_GRAPHQL_API_KEY and NVD_API_KEY
 if [ ! -d "vexgen" ]; then
@@ -223,6 +228,36 @@ chmod +x /usr/local/bin/autofuzz
 # Start the service
 print_status "Starting Autofuzz service..."
 sudo systemctl start $SERVICE_NAME
+
+print_status "Waiting for the Vexgen service to be fully operational..."
+max_attempts=300 # Esperar un máximo de 600 segundos (300 intentos * 2 segundos)
+attempt=0
+url_to_check="http://localhost:8000/docs" # Cambia el puerto si es diferente
+
+while [ $attempt -lt $max_attempts ]; do
+    # Usamos 'curl' para comprobar si el servicio responde.
+    # El flag -s silencia la salida, -o /dev/null la descarta, y -I solo pide las cabeceras.
+    # El código de estado de curl será 0 si tiene éxito.
+    if curl -s -o /dev/null -I -w "%{http_code}" "$url_to_check" | grep -q "200"; then
+        print_success "Vexgen service is up and running."
+        break
+    fi
+    
+    # Si no funciona, espera 2 segundos y vuelve a intentarlo
+    echo -n "." # Imprime un punto para mostrar que está esperando
+    sleep 2
+    attempt=$((attempt + 1))
+done
+echo "" # Nueva línea después de los puntos
+
+if [ $attempt -ge $max_attempts ]; then
+    print_error "Timeout: The Vexgen service did not start in time."
+    print_warning "You can check the service status with: systemctl status ${SERVICE_NAME}"
+    print_warning "And the logs with: journalctl -xeu ${SERVICE_NAME}"
+    print_warning "The service might just be taking longer to start. To check it manually, run the following command in another terminal:"
+    print_warning "curl -I ${url_to_check}"
+    exit 1
+fi
 
 print_status "Adjusting file ownership for the project directory..."
 chown -R ${SUDO_USER}:${SUDO_GID:-$(id -g $SUDO_USER)} ${PROJECT_DIR}
