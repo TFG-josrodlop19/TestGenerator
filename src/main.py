@@ -1,6 +1,9 @@
 from java_analyzer.spoon_reader import get_artifact_info
 from test_generator.generator import generate_fuzzer
 import argparse
+from dotenv import load_dotenv
+
+load_dotenv()
 
 if __name__ == "__main__":
     # parser = argparse.ArgumentParser(description="Generates fuzzer tests for Maven projects.")
