@@ -1,6 +1,7 @@
 import os
+import json
 
-def write_token_to_file(token: str):
+def write_token_to_file(token: str, user_id: str = None):
     try:
         file_path = os.getenv("VEXGEN_TOKEN_FILE")
         
@@ -12,10 +13,16 @@ def write_token_to_file(token: str):
         if directory and not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
         
+        # Create JSON data
+        token_data = {
+            "user_id": user_id,
+            "token": token
+        }
+        
         # Create/write to file (automatically creates if doesn't exist)
         print(file_path)
         with open(file_path, 'w') as file:
-            file.write(token)
+            json.dump(token_data, file, indent=2)
         os.chmod(file_path, 0o600)
 
     except Exception as e:
