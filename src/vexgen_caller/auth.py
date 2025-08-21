@@ -11,6 +11,7 @@ def signup(email:str, password:str):
     try:
         response = requests.post(url, json=data)
         response.raise_for_status()
+        print(response.json())
     except requests.exceptions.RequestException as e:   
         print(f"Signup failed: {response.json().get('detail')[0].get('msg', 'Unknown error')}")
         
@@ -22,7 +23,6 @@ def login(email:str, password:str):
     try:
         response = requests.post(url, json=data)
         response.raise_for_status()
-        print(response.json().get("access_token"))
-        writer.write_token_to_file(response.json().get("access_token"))
+        writer.write_token_to_file(response.json().get("access_token"), response.json().get("user_id"))
     except requests.exceptions.RequestException as e:   
         print(f"Login failed: {response.json().get('detail')[0].get('msg', 'Unknown error')}")

@@ -7,4 +7,5 @@ from dotenv import load_dotenv
 load_dotenv()
 
 if __name__== "__main__":
-    login("test@example.com", "Pa$$word123")
+    # login("test@example.com", "Pa$$word123")
+    signup("test2@example.com", "Pa$$word123")
