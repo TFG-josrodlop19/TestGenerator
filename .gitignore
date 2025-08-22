@@ -3,6 +3,7 @@ fuzzers_generados/
 .vscode/
 src/spoon_exit_example.json
 vexgen/
+generated_vex/
 
 
 # Byte-compiled / optimized / DLL files
