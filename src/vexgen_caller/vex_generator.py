@@ -3,7 +3,13 @@ import requests
 import json
 import zipfile
 from utils.file_writer import make_valid_file_path as sanitize_path
+from utils.classes import ArtifactInfoVex
 
+def generate_download_path(owner:str, name:str) -> str:
+    folder_name = f"{owner}/{name}"
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    general_vex_path = os.path.join(project_root, "generated_vex")
+    return sanitize_path(folder_name, general_vex_path)
 
 def generate_vex(owner:str, name:str, sbom_path:str):
     url = os.getenv("VEXGEN_URL") + "/vex/generate"
@@ -44,13 +50,8 @@ def generate_vex(owner:str, name:str, sbom_path:str):
                 filename = content_disposition.split('filename=')[1].strip('"')
             
             # Create directory structure
-            folder_name = f"{owner}_{name}"
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            download_path = generate_download_path(owner, name)
 
-            general_vex_path = os.path.join(project_root, "generated_vex")
-            
-            download_path = sanitize_path(folder_name, general_vex_path) 
-            
             # Create directory if it doesn't exist
             os.makedirs(download_path, exist_ok=True)
 
@@ -78,37 +79,39 @@ def generate_vex(owner:str, name:str, sbom_path:str):
     except requests.RequestException as e:
         print(f"Error generating VEX: {response.json().get('message', 'Unknown error')}")
 
-def download_vex(vex_id: str):
-    url = os.getenv("VEXGEN_URL") + f"/vex/download/{vex_id}"
-    if not vex_id:
-        raise ValueError("VEX ID must be provided for downloading VEX.")
+
+
+def open_vex_file(owner:str, name:str) -> list:
+    vex_path = os.path.join(generate_download_path(owner, name), "extended_vex.json")
+    if not os.path.exists(vex_path):
+        raise FileNotFoundError(f"VEX file not found: {vex_path}")
+    with open(vex_path, 'r') as f:
+        vex_data = json.load(f)
+        
+    if not vex_data:
+        raise ValueError("VEX data is empty or invalid.")
     
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        print("Vex download successful.")
-        # print(response.json())
-    except requests.RequestException as e:
-        print(f"Error downloading VEX: {response.json().get('message', 'Unknown error')}")
-        
-        
-def list_vex():
-    # Get user ID from json file
-    token_file = os.path.expanduser(os.getenv("VEXGEN_TOKEN_FILE"))
-    if not os.path.exists(token_file):
-        raise FileNotFoundError(f"Token file not found: {token_file}")
-    with open(token_file, 'r') as f:
-        token_data = json.load(f)
-        user_id = token_data.get("user_id")
-        if not user_id:
-            raise ValueError("User ID must be provided or found in the token file.")
-        
-    url = os.getenv("VEXGEN_URL") + "/vex/user/" + user_id
+    extended_statements = vex_data.get("extended_statements", [])
     
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        print("Vex list successful.")
-        print(response.json())
-    except requests.RequestException as e:
-        print(f"Error listing VEX: {response.json().get('message', 'Unknown error')}")
+    artifacts = set()
+    for statement in extended_statements:
+        reachable_code = statement.get("reachable_code")
+        
+        # If reachable_code is present, there is a possible vulnerable artifact
+        if reachable_code:
+            for file in reachable_code:
+                
+                file_path = file.get("path_to_file")
+                if file_path:  #and file_path.endswith('.java'):
+                    used_artifacts = file.get("used_artifacts", [])
+                    for artifact in used_artifacts:
+                        artifact_name = artifact.get("artifact_name")
+                        used_in_lines = artifact.get("used_in_lines", [])
+                        for line in used_in_lines:
+                            artifact_data = ArtifactInfoVex(
+                                file_path=file_path,
+                                target_line=line,
+                                target_name=artifact_name
+                            )
+                            artifacts.add(artifact_data)
+    return list(artifacts)
