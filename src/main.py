@@ -1,3 +1,4 @@
+from operator import is_
 import os
 from java_analyzer.spoon_reader import get_artifact_info
 from test_generator.generator import generate_fuzzer
@@ -54,11 +55,11 @@ def run(
     else:
         generate_vex(owner, name, sbom_path)
         artifacts_json = open_vex_file(owner, name)
-        
-    print(len(artifacts_json))
-        
+
     # Generate artifacts info with Spoon
-    if len(artifacts_json) == 0:
+    if artifacts_json != None and artifacts_json != "[]":
+        print(f"Number of artifacts greater than 0: {len(artifacts_json)}")
+        print(artifacts_json)
         artifacts_data = get_artifact_info(os.path.abspath(pom_path), artifacts_json)
     else:
         print("No artifacts found in the VEX file.")
