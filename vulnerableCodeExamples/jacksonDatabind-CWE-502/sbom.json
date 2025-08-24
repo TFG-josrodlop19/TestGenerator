@@ -1,0 +1,142 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.4",
+  "serialNumber": "urn:uuid:jackson-rce-demo-1.0-SNAPSHOT",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2025-08-24T00:00:00.000Z",
+    "tools": [
+      {
+        "vendor": "CycloneDX",
+        "name": "maven-plugin",
+        "version": "2.7.9"
+      }
+    ],
+    "component": {
+      "type": "application",
+      "bom-ref": "com.example:jackson-rce-demo:1.0-SNAPSHOT",
+      "name": "jackson-rce-demo",
+      "version": "1.0-SNAPSHOT",
+      "group": "com.example",
+      "purl": "pkg:maven/com.example/jackson-rce-demo@1.0-SNAPSHOT"
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "com.fasterxml.jackson.core:jackson-databind:2.9.8",
+      "name": "jackson-databind",
+      "version": "2.9.8",
+      "group": "com.fasterxml.jackson.core",
+      "scope": "required",
+      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-databind@2.9.8",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "11283f21cc480aa86c4df7a0a3243ec508372515"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "com.fasterxml.jackson.core:jackson-core:2.9.8",
+      "name": "jackson-core",
+      "version": "2.9.8",
+      "group": "com.fasterxml.jackson.core",
+      "scope": "required",
+      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-core@2.9.8",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "f5a654e4675769c716e5b387830d19b501ca191"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "com.fasterxml.jackson.core:jackson-annotations:2.9.0",
+      "name": "jackson-annotations",
+      "version": "2.9.0",
+      "group": "com.fasterxml.jackson.core",
+      "scope": "required",
+      "purl": "pkg:maven/com.fasterxml.jackson.core/jackson-annotations@2.9.0",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "07c10d545325e3a6e72e06381afe469fd40eb701"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "com.h2database:h2:1.4.199",
+      "name": "h2",
+      "version": "1.4.199",
+      "group": "com.h2database",
+      "scope": "required",
+      "purl": "pkg:maven/com.h2database/h2@1.4.199",
+      "hashes": [
+        {
+          "alg": "SHA-1",
+          "content": "7bf08152984ed8859740ae3f91b34c315937c718"
+        }
+      ],
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0"
+          }
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "com.example:jackson-rce-demo:1.0-SNAPSHOT",
+      "dependsOn": [
+        "com.fasterxml.jackson.core:jackson-databind:2.9.8",
+        "com.h2database:h2:1.4.199"
+      ]
+    },
+    {
+      "ref": "com.fasterxml.jackson.core:jackson-databind:2.9.8",
+      "dependsOn": [
+        "com.fasterxml.jackson.core:jackson-core:2.9.8",
+        "com.fasterxml.jackson.core:jackson-annotations:2.9.0"
+      ]
+    },
+    {
+      "ref": "com.fasterxml.jackson.core:jackson-core:2.9.8",
+      "dependsOn": []
+    },
+    {
+      "ref": "com.fasterxml.jackson.core:jackson-annotations:2.9.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "com.h2database:h2:1.4.199",
+      "dependsOn": []
+    }
+  ]
+}
