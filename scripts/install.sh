@@ -124,6 +124,16 @@ fi
 # Add pymongo dependency to requirements.txt
 echo -e "\npymongo==4.7.0" >> vexgen/backend/requirements.txt 
 
+# Setup OSS-Fuzz
+if [ ! -d "OFF-Fuzz" ]; then
+    print_status "Cloning OSS-Fuzz repository..."
+    if ! git clone https://github.com/JosueRodLop/OSS-Fuzz.git; then
+        print_error "Failed to clone OSS-Fuzz repository"
+        exit 1
+    fi
+    rm -rf .git/
+    rm -rf .github/
+    rm -rf .gitattributes
 
 # Create systemd service file
 print_status "Creating systemd service file..."
