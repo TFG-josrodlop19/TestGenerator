@@ -1,5 +1,3 @@
-from java_analyzer.function_identifier import open_java_file, analyze_java_file
-import javalang
 from typing import Dict, Optional
 from vexgen_caller.auth import signup, login
 from vexgen_caller.vex_generator import generate_vex, open_vex_file
@@ -13,4 +11,5 @@ if __name__== "__main__":
     # generate_vex("depexorg", "vex_generation", "sbom.json")
     # generate_vex("vchaindz", "sbomsign", "sbom.json")
     # generate_vex("Dataport", "terminfinder-frontend", "src/sbom.json")
-    open_vex_file("depexorg", "vex_generation")
+    generate_vex("TFG-josrodlop19", "TestGenerator", "vulnerableCodeExamples/jacksonDatabind-CWE-502/sbom.json")
+    # open_vex_file("depexorg", "vex_generation")

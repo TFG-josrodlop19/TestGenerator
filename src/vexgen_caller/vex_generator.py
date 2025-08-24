@@ -119,8 +119,8 @@ def open_vex_file(owner:str, name:str) -> str:
     artifacts_list = []
     for artifact in artifacts:
         artifacts_list.append({
-            "file_path": artifact.file_path,
-            "target_line": artifact.target_line,
+            "file_path": os.path.abspath(artifact.file_path),
+            "target_line": str(artifact.target_line),
             "target_name": artifact.target_name
         })
     

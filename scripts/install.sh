@@ -177,50 +177,14 @@ print_status "Creating CLI script..."
 tee /usr/local/bin/autofuzz > /dev/null <<EOF
 #!/bin/bash
 
-SERVICE_NAME="${SERVICE_NAME}"
-PROJECT_DIR="${PROJECT_DIR}"
+# Estas variables se rellenan con los valores de tu script de instalación
 PYTHON_EXEC="${PYTHON_EXEC}"
 MAIN_SCRIPT="${MAIN_SCRIPT}"
 
-show_help() {
-    echo "Autofuzz - Automated Fuzz Testing tool to detect vulnerable dependencies"
-    echo ""
-    echo "Usage: autofuzz <command> [arguments]"
-    echo ""
-    echo "Execution commands:"
-    echo "  run [args]    Run Autofuzz directly with optional arguments"
-    echo "  help          Show this help message"
-    echo ""
-    echo "Examples:"
-    echo "  autofuzz run --url http://example.com"
-    echo "  autofuzz run --target /path/to/project"
-    echo "  autofuzz run --verbose"
-    echo ""
-}
-
-case "\$1" in
-    run)
-        shift  # Remove 'run' from arguments
-        echo "Running Autofuzz..."
-        cd "\$PROJECT_DIR"
-        "\$PYTHON_EXEC" "\$MAIN_SCRIPT" "\$@"
-        ;;
-    help|--help|-h)
-        show_help
-        ;;
-    "")
-        echo "Error: No command specified"
-        echo ""
-        show_help
-        exit 1
-        ;;
-    *)
-        echo "Error: Unknown command '\$1'"
-        echo ""
-        show_help
-        exit 1
-        ;;
-esac
+# La única línea de lógica:
+# Ejecuta el script principal de Python y le pasa TODOS los argumentos ("\$@").
+# La barra invertida asegura que "\$@" se escriba literalmente en el archivo.
+"\$PYTHON_EXEC" "\$MAIN_SCRIPT" "\$@"
 EOF
 
 chmod +x /usr/local/bin/autofuzz

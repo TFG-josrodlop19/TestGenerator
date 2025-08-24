@@ -2,7 +2,7 @@ import subprocess
 import json
 import os
 
-def get_artifact_info(pom_path: str, file_path: str, line_number: int, artifact_name: str) -> dict:
+def get_artifact_info(pom_path: str, artifacts_data: json) -> dict:
     """
     Executes the Java analyzer to get information about a specific artifact in a Java file.
     """
@@ -12,10 +12,7 @@ def get_artifact_info(pom_path: str, file_path: str, line_number: int, artifact_
         "java",
         "-jar",
         analyzer_jar_path,
-        os.path.abspath(pom_path),
-        os.path.abspath(file_path),
-        str(line_number),
-        artifact_name
+        artifacts_data
     ]
     
     print(f"Executing: {' '.join(command)}")
