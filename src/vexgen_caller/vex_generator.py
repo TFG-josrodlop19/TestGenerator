@@ -75,7 +75,7 @@ def generate_vex(owner:str, name:str, sbom_path:str):
                 os.remove(vex_json_path)
             
         else:
-            raise ValueError("Response does not contain a valid VEX file.")
+            raise ValueError("Response does not contain a valid VEX file: " + response.json().get('message', 'Unknown error'))
     except requests.RequestException as e:
         print(f"Error generating VEX: {response.json().get('message', 'Unknown error')}")
 

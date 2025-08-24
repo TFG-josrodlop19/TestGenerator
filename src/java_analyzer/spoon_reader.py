@@ -2,7 +2,7 @@ import subprocess
 import json
 import os
 
-def get_artifact_info(pom_path: str, artifacts_data: json) -> dict:
+def get_artifact_info(pom_path: str, artifacts_data: str) -> dict:
     """
     Executes the Java analyzer to get information about a specific artifact in a Java file.
     """
@@ -12,6 +12,7 @@ def get_artifact_info(pom_path: str, artifacts_data: json) -> dict:
         "java",
         "-jar",
         analyzer_jar_path,
+        pom_path,   
         artifacts_data
     ]
     
@@ -20,9 +21,18 @@ def get_artifact_info(pom_path: str, artifacts_data: json) -> dict:
     try:
         result = subprocess.run(command, capture_output=True, text=True, check=True, encoding='utf-8')
         return json.loads(result.stdout)
-    except Exception as e:
+    except subprocess.CalledProcessError as e:
         print(f"Error while analyzing file: {e}")
-        if hasattr(e, 'stderr'):
-            print("--- Spoon error ---")
-            print(e.stderr)
+        print("--- Spoon stdout ---")
+        print(e.stdout)
+        print("--- Spoon stderr ---")
+        print(e.stderr)
+        return None
+    except json.JSONDecodeError as e:
+        print(f"Error parsing JSON output: {e}")
+        print("--- Raw output ---")
+        print(result.stdout)
+        return None
+    except Exception as e:
+        print(f"Unexpected error: {e}")
         return None

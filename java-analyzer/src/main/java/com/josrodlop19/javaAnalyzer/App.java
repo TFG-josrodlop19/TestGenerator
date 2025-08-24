@@ -31,9 +31,6 @@ public class App {
                 int targetLine = artifact.getInt("target_line");
                 String targetName = artifact.getString("target_name");
 
-                System.out.println("Processing artifact " + (i + 1) + "/" + artifacts.length());
-                System.out.println("File: " + filePath + ", Line: " + targetLine + ", Target: " + targetName);
-
                 // Create an instance of CodeAnalyzer for each artifact
                 analyzer.setFilePath(filePath);
                 analyzer.setTargetLine(targetLine);
