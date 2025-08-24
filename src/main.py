@@ -27,7 +27,8 @@ if __name__ == "__main__":
         line_number=24,
         artifact_name="readValue"
     )
-    entry_data = function_info.get("allCallPaths")[0][1]
+    for artifact in function_info:
+        entry_data = artifact.get("allCallPaths")[0][1]
 
     generate_fuzzer(
         data=entry_data,
