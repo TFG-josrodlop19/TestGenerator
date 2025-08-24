@@ -45,6 +45,10 @@ public class CodeAnalyzer {
 
     private List<List<Map<String, Object>>> allCallPaths;
 
+    public CodeAnalyzer(String pomPath) {
+        this.pomPath = pomPath;
+    }
+
     public CodeAnalyzer(String pomPath, String filePath, Integer targetLine, String targetName) {
         this.pomPath = pomPath;
         this.filePath = filePath;
@@ -54,7 +58,6 @@ public class CodeAnalyzer {
 
     public void processCode() {
         // Main method to process the code
-        extractAST();
         findFunctionInvocation();
 
         ArtifactData artifactData = OutputDataBuilder.extractArtifactData(this.targetInvocation);
@@ -68,7 +71,7 @@ public class CodeAnalyzer {
 
     }
 
-    private void extractAST() {
+    public void extractAST() {
         SpoonAPI launcher = new MavenLauncher(this.pomPath, MavenLauncher.SOURCE_TYPE.APP_SOURCE, true);
 
         // Reads the file and builds the AST
@@ -137,7 +140,7 @@ public class CodeAnalyzer {
         return foundInvocation;
     }
 
-    public void getCompleteDataAsString() {
+    public String getCompleteDataAsString() {
 
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         Map<String, Object> completeData = new LinkedHashMap<>();
@@ -145,6 +148,6 @@ public class CodeAnalyzer {
         completeData.put("callStack", this.callStack);
         completeData.put("allCallPaths", this.allCallPaths);
         String jsonOutput = gson.toJson(completeData);
-        System.out.println(jsonOutput);
+        return jsonOutput;
     }
 }

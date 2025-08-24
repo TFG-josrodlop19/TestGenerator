@@ -35,6 +35,7 @@ public class OutputDataBuilder {
 
         data.setClassName(invocation.getPosition().getFile().getName().replace(".java", ""));
         data.setLineNumber(invocation.getPosition().getLine());
+        data.setFilePath(invocation.getPosition().getFile().getAbsolutePath());
 
         // Get artifact type and name
         data.setNodeType(invocation.getClass().getSimpleName());
