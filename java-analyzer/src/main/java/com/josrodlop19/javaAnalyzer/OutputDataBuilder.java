@@ -1,11 +1,9 @@
 package com.josrodlop19.javaAnalyzer;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import spoon.reflect.code.CtAbstractInvocation;
 import spoon.reflect.code.CtExpression;
