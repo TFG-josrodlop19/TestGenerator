@@ -81,7 +81,7 @@ def generate_vex(owner:str, name:str, sbom_path:str):
 
 
 
-def open_vex_file(owner:str, name:str) -> list:
+def open_vex_file(owner:str, name:str) -> str:
     vex_path = os.path.join(generate_download_path(owner, name), "extended_vex.json")
     if not os.path.exists(vex_path):
         raise FileNotFoundError(f"VEX file not found: {vex_path}")
@@ -114,4 +114,15 @@ def open_vex_file(owner:str, name:str) -> list:
                                 target_name=artifact_name
                             )
                             artifacts.add(artifact_data)
-    return list(artifacts)
+    
+    # Convert to JSON format
+    artifacts_list = []
+    for artifact in artifacts:
+        artifacts_list.append({
+            "file_path": artifact.file_path,
+            "target_line": artifact.target_line,
+            "target_name": artifact.target_name
+        })
+    
+    # Return as JSON to use it on spoon
+    return json.dumps(artifacts_list, indent=2)
