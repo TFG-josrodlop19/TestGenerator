@@ -11,17 +11,24 @@ load_dotenv()
 app = typer.Typer()
 
 @app.command()
-def vexgex_signup(
-    email: str = typer.Argument(..., help="Email for the VEXGen account."),
-    password: str = typer.Argument(..., help="Password for the VEXGen account.")
+def vexgen_signup(
+    email: str = typer.Argument(..., help="Email for the VEXGen account.")
     ):
+    """
+    Signs up to Vexgen
+    """
+    password = typer.prompt("Password", hide_input=True, confirmation_prompt=True)
     signup(email, password)
 
 @app.command()
 def vexgen_login(
-    email: str = typer.Argument(..., help="Email for the VEXGen account."),
-    password: str = typer.Argument(..., help="Password for the VEXGen account.")
+    email: str = typer.Argument(..., help="Email for the VEXGen account.")
     ):
+    """
+    Logs in to Vexgen
+    """
+    
+    password = typer.prompt("Password", hide_input=True)
     login(email, password)
     
 @app.command()
@@ -33,7 +40,7 @@ def run(
     reload: bool = typer.Option(False, "--reload", "-r", help="Force re-generation of the VEX file even if it already exists.")
     ):
     """
-    Run the VEXGen tool.
+    Generates vex and automatically runs tests.
     """
     artifacts_json = None
     if not reload:

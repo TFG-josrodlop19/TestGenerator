@@ -22,7 +22,6 @@ def write_token_to_file(token: str, user_id: str = None):
         }
         
         # Create/write to file (automatically creates if doesn't exist)
-        print(file_path)
         with open(file_path, 'w') as file:
             json.dump(token_data, file, indent=2)
         os.chmod(file_path, 0o600)
