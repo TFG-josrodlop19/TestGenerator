@@ -35,7 +35,7 @@ def vexgen_login(
 def run(
     owner : str = typer.Argument(..., help="Owner of the GitHub repository where the sbom.json file is stored."),
     name : str = typer.Argument(..., help="Name of the GitHub repository where the sbom.json file is stored."),
-    sbom_path : str = typer.Argument("sbom.json", help="Path to the sbom.json file in the GitHub repository."),
+    sbom_path : str = typer.Argument(..., help="Path to the sbom.json file in the GitHub repository."),
     pom_path: str = typer.Argument(..., help="Path to the pom.xml file of the Maven project."),
     reload: bool = typer.Option(False, "--reload", "-r", help="Force re-generation of the VEX file even if it already exists.")
     ):
@@ -49,15 +49,20 @@ def run(
             print(f"Using existing VEX file")
         except FileNotFoundError:
             print(f"VEX file not found, generating a new one...")
-            generate_vex(owner, name, sbom_path, pom_path)
+            generate_vex(owner, name, sbom_path)
             artifacts_json = open_vex_file(owner, name)
     else:
-        generate_vex(owner, name, sbom_path, pom_path)
+        generate_vex(owner, name, sbom_path)
         artifacts_json = open_vex_file(owner, name)
         
+    print(len(artifacts_json))
+        
     # Generate artifacts info with Spoon
-    artifacts_data = get_artifact_info(os.path.abspath(pom_path), artifacts_json)
-    
+    if len(artifacts_json) == 0:
+        artifacts_data = get_artifact_info(os.path.abspath(pom_path), artifacts_json)
+    else:
+        print("No artifacts found in the VEX file.")
+        return
     for artifact in artifacts_data:
         entry_data = artifact.get("allCallPaths")[0][1]
 
@@ -69,32 +74,3 @@ def run(
 
 if __name__ == "__main__":
     app()
-    # parser = argparse.ArgumentParser(description="Generates fuzzer tests for Maven projects.")
-    # parser.add_argument("--pom_path", type=str, help="Path to the pom.xml file of the Maven project.")
-    # parser.add_argument("--file_path", type=str, help="Path to java file containing the vulnerable code.")
-    # parser.add_argument("--line_num", type=int, help="Número de línea donde se declara la función.")
-    # parser.add_argument("--artifact_name", type=str, help="Name of the artifact to analyze.")
-    # args = parser.parse_args()
-    
-    # # Analyze Java file to get information about the function
-    # function_info = get_artifact_info(
-    #     pom_path=args.pom_path,
-    #     file_path=args.file_path,
-    #     line_number=args.line_num,
-    #     artifact_name=args.artifact_name
-    # )
-    
-    # function_info = get_artifact_info(
-        # pom_path="vulnerableCodeExamples/jacksonDatabind-CWE-502",
-        # file_path="vulnerableCodeExamples/jacksonDatabind-CWE-502/src/main/java/com/example/JsonProcessor.java",
-        # line_number=24,
-        # artifact_name="readValue"
-    # )
-    # for artifact in function_info:
-        # entry_data = artifact.get("allCallPaths")[0][1]
-# 
-    # generate_fuzzer(
-        # data=entry_data,
-        # TODO: espcify the output directory for generated fuzzers in production
-        # exit_directory="fuzzers_generados"
-    # )
