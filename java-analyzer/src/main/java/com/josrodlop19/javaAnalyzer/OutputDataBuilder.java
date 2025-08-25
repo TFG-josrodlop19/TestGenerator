@@ -34,6 +34,8 @@ public class OutputDataBuilder {
         data.setClassName(invocation.getPosition().getFile().getName().replace(".java", ""));
         data.setLineNumber(invocation.getPosition().getLine());
         data.setFilePath(invocation.getPosition().getFile().getAbsolutePath());
+        data.setPackageName(invocation.getPosition().getCompilationUnit().getPackageDeclaration() != null ? 
+            invocation.getPosition().getCompilationUnit().getPackageDeclaration().toString() : "");
 
         // Get artifact type and name
         data.setNodeType(invocation.getClass().getSimpleName());
@@ -81,6 +83,8 @@ public class OutputDataBuilder {
         treeNode.setFilePath(method.getPosition().getFile().getAbsolutePath());
         treeNode.setClassName(method.getDeclaringType().getSimpleName());
         treeNode.setLineNumber(method.getPosition().getLine());
+        treeNode.setPackageName(method.getPosition().getCompilationUnit().getPackageDeclaration() != null ? 
+            method.getPosition().getCompilationUnit().getPackageDeclaration().toString() : "");
 
         treeNode.setNodeType(method.getClass().getSimpleName());
         treeNode.setQualifierType(method.getDeclaringType().getQualifiedName());
@@ -105,6 +109,8 @@ public class OutputDataBuilder {
         treeNode.setFilePath(constructor.getPosition().getFile().getAbsolutePath());
         treeNode.setClassName(constructor.getDeclaringType().getSimpleName());
         treeNode.setLineNumber(constructor.getPosition().getLine());
+        treeNode.setPackageName(constructor.getPosition().getCompilationUnit().getPackageDeclaration() != null ? 
+            constructor.getPosition().getCompilationUnit().getPackageDeclaration().toString() : "");
 
         treeNode.setNodeType(constructor.getClass().getSimpleName());
         treeNode.setQualifierType(constructor.getDeclaringType().getQualifiedName());
@@ -126,6 +132,8 @@ public class OutputDataBuilder {
         treeNode.setFilePath(invocation.getPosition().getFile().getAbsolutePath());
         treeNode.setLineNumber(invocation.getPosition().getLine());
         treeNode.setClassName(invocation.getPosition().getFile().getName().replace(".java", ""));
+        treeNode.setPackageName(invocation.getPosition().getCompilationUnit().getPackageDeclaration() != null ? 
+            invocation.getPosition().getCompilationUnit().getPackageDeclaration().toString() : "");
 
         treeNode.setNodeType("Root");
         treeNode.setTarget(invocation.getExecutable().getSimpleName());
