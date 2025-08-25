@@ -32,6 +32,7 @@ def get_artifact_info(pom_path: str, artifacts_data: str) -> dict:
         # DEBUG información
         print(f"DEBUG - Return code: {result.returncode}")
         print(f"DEBUG - Stderr: {result.stderr}")
+        print(f"DEBUG - Stdout: {result.stdout}")  # Mostrar stdout también
         
         if not result.stdout.strip():
             print("ERROR: stdout is empty!")

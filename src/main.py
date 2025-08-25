@@ -49,10 +49,10 @@ def run(
     # confidence
     ):
     """
-    Generates vex and automatically runs tests.
+    Generates vex and automatically runs tests.`
     """
     dest_path = Path(generate_path_repo(owner, name))
-    clone_repo(owner, name, dest_path)
+    # clone_repo(owner, name, dest_path)
 
     resolved_pom_path = resolve_path(pom_path, dest_path)
     resolved_sbom_path = resolve_path(sbom_path, dest_path)
@@ -93,6 +93,7 @@ def run(
     artifacts_data = None
     if artifacts_json and artifacts_json != "[]":
         artifacts_data = get_artifact_info(str(resolved_pom_path), artifacts_json)
+        # print(artifacts_data)
     else:
         print("No artifacts found in the VEX file.")
         return
@@ -123,12 +124,65 @@ def repair_tests(
     """
     pass
 
+@app.command()
+def init(
+    force : bool = typer.Option(False, "--force", "-f", help="Force re-initialization even if the structure already exists.")
+    ):
+    """
+    Initializes the project structure.
+    """
+    # Obtener el directorio actual desde donde se invoca el comando
+    current_dir = Path.cwd()
+    autofuzz_dir = current_dir / ".autofuzz"
+    
+    # Verificar si ya existe
+    if autofuzz_dir.exists() and not force:
+        print(f"Directory .autofuzz already exists at {autofuzz_dir}")
+        print("Use --force to overwrite existing structure")
+        return
+    
+    try:
+        # Crear el directorio .autofuzz
+        autofuzz_dir.mkdir(exist_ok=force)
+        print(f"Successfully created .autofuzz directory at {autofuzz_dir}")
+        
+        # Crear build.sh
+        build_sh_content = """#!/bin/bash
+            # Build script for OSS-Fuzz fuzzing
+            # Add your build commands here
+            """
+        (autofuzz_dir / "build.sh").write_text(build_sh_content)
+        
+        # Crear Dockerfile
+        dockerfile_content = """# Dockerfile for OSS-Fuzz
+            # Add your Docker configuration here
+
+            """
+        (autofuzz_dir / "Dockerfile").write_text(dockerfile_content)
+        
+        # Crear project.yaml
+        project_yaml_content = """# Project configuration for OSS-Fuzz
+            # Add your project configuration here
+
+            """
+        (autofuzz_dir / "project.yaml").write_text(project_yaml_content)
+        
+        print("Created OSS-Fuzz configuration files:")
+        print(f"  - {autofuzz_dir / 'build.sh'}")
+        print(f"  - {autofuzz_dir / 'Dockerfile'}")
+        print(f"  - {autofuzz_dir / 'project.yaml'}")
+        
+    except Exception as e:
+        print(f"Error creating .autofuzz directory: {e}")
+        raise typer.Exit(1)
+    
+
 if __name__ == "__main__":
     app()
     # run(
-    #     owner="example-owner",
-    #     name="example-repo", 
-    #     sbom_path="vulnerableCodeExamples/jacksonDatabind-CWE-502/sbom.json",  # Ruta relativa desde PROJECT_ROOT
-    #     pom_path="vulnerableCodeExamples/jacksonDatabind-CWE-502/pom.xml",     # Ruta relativa desde PROJECT_ROOT
+    #     owner="TFG-josrodlop19",
+    #     name="VulnerableProject1", 
+    #     sbom_path="sbom.json",  # Ruta relativa desde PROJECT_ROOT
+    #     pom_path="pom.xml",     # Ruta relativa desde PROJECT_ROOT
     #     reload=False
     # )

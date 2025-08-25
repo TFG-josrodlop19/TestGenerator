@@ -15,7 +15,7 @@
 {{ indent }}{{ param.type }} {{ parent_name }}{{ param.name }} = dataProvider.{{ param.fuzz_method }};
 {% endif %}
 {% endmacro %}
-package com.example;
+{{ packageName }};
 
 import com.code_intelligence.jazzer.api.FuzzedDataProvider;
 import {{ qualifierType }};
