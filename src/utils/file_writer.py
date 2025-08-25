@@ -2,6 +2,7 @@ import os
 import json
 from unicodedata import normalize
 import string
+from pathlib import Path
 
 def write_token_to_file(token: str, user_id: str = None):
     try:
@@ -98,3 +99,32 @@ def make_valid_file_path(path, root_path):
         return complete_path
     else:
         return None
+    
+    
+def resolve_path(path: str, project_root: str) -> Path:
+    """
+    Resuelve una ruta relativa o absoluta y la convierte a Path absoluto.
+    Si la ruta es relativa, la resuelve desde PROJECT_ROOT.
+    """
+    path_obj = Path(path)
+    if path_obj.is_absolute():
+        return path_obj
+    else:
+        # Si es relativa, probar primero desde PROJECT_ROOT
+        project_path = project_root / path
+        if project_path.exists():
+            return project_path.resolve()
+        # Si no existe, probar desde el directorio actual
+        current_path = Path.cwd() / path
+        return current_path.resolve()
+    
+    
+def generate_path_repo(owner:str, name:str) -> str:
+    """
+    Generates a valid and secure path for the repository from its owner and name.
+    """
+    
+    folder_name = f"{owner}_{name}"
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    general_vex_path = os.path.join(project_root, "OSS-Fuzz", "projects")
+    return make_valid_file_path(folder_name, general_vex_path)

@@ -1,4 +1,5 @@
 import subprocess
+from pathlib import Path
 
 
 def clone_repo(owner: str, name: str, dest_path: str):
@@ -9,7 +10,13 @@ def clone_repo(owner: str, name: str, dest_path: str):
     ssh_url = f"git@github.com:{owner}/{name}.git"
     https_url = f"https://github.com/{owner}/{name}.git"
     
-    # Try SSH first
+
+    if dest_path.exists():
+        print(f"Project {dest_path.name} already cloned. Pulling latest changes.")
+        subprocess.run(["git", "-C", dest_path, "pull"], check=True)
+        return True
+    
+    # Try SSH first    
     try:
         print(f"Attempting to clone with SSH: {ssh_url}")
         result = subprocess.run(
