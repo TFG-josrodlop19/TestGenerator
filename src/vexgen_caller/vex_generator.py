@@ -102,7 +102,7 @@ def open_vex_file(owner:str, name:str) -> str:
             for file in reachable_code:
                 
                 file_path = file.get("path_to_file")
-                if file_path:  #and file_path.endswith('.java'):
+                if file_path and file_path.endswith('.java'):
                     used_artifacts = file.get("used_artifacts", [])
                     for artifact in used_artifacts:
                         artifact_name = artifact.get("artifact_name")

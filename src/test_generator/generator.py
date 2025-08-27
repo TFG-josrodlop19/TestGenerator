@@ -80,7 +80,7 @@ def generate_fuzzer(data: dict, exit_directory: str = "."):
     # Crear el nombre del archivo y la ruta de salida
     class_name = data.get("className", data.get("qualifierType_simple_name"))
     artifact_name = data.get("artifactName", "Constructor")
-    clase_fuzzer = f"{class_name}{artifact_name.capitalize()}Fuzzer"
+    clase_fuzzer = f"{class_name}_{artifact_name.capitalize()}_Fuzzer"
     
     # Resolver la ruta de salida
     exit_path = Path(exit_directory).resolve()
@@ -95,4 +95,5 @@ def generate_fuzzer(data: dict, exit_directory: str = "."):
         f.write(codigo_generado)
         
     print(f"Fuzzer generado en: {ruta_salida}")
+    return ruta_salida
     return str(ruta_salida)

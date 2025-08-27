@@ -6,8 +6,9 @@ from dotenv import load_dotenv
 import typer
 from vexgen_caller.auth import signup, login
 from vexgen_caller.vex_generator import generate_vex, open_vex_file
-from utils.file_writer import resolve_path, generate_path_repo
+from utils.file_writer import resolve_path, generate_path_repo, write_test_info_to_json
 from utils.git_utils import clone_repo
+from utils.classes import TestStatus, TestInfo
 
 load_dotenv()
 
@@ -53,9 +54,14 @@ def run(
     """
     dest_path = Path(generate_path_repo(owner, name))
     # clone_repo(owner, name, dest_path)
+    
+    print(f"Cloned repository to: {dest_path}")
 
     resolved_pom_path = resolve_path(pom_path, dest_path)
     resolved_sbom_path = resolve_path(sbom_path, dest_path)
+    
+    print(f"Resolved POM path: {resolved_pom_path}")
+    print(f"Resolved SBOM path: {resolved_sbom_path}")
     
     # Verificar que los archivos existen
     if not resolved_pom_path.exists():
@@ -99,21 +105,51 @@ def run(
         return
     
     if artifacts_data:
+        # Definir directorio de salida dentro del proyecto clonado
+        test_dir = dest_path / "src" / "test" / "java"
+        test_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Dict to store test results
+        test_results = {}
+        test_already_generated = set()
         for artifact in artifacts_data:
             all_call_paths = artifact.get("allCallPaths", [])
-            if all_call_paths and len(all_call_paths) > 0 and len(all_call_paths[0]) > 1:
-                entry_data = all_call_paths[0][1]
-                
-                # Definir directorio de salida dentro del proyecto clonado
-                test_dir = dest_path / "src" / "test" / "java"
-                test_dir.mkdir(parents=True, exist_ok=True)
-                
-                generate_fuzzer(
-                    data=entry_data,
-                    exit_directory=str(test_dir)
-                )
+            artifact_data = artifact.get("artifactData")
+            artifact_key = f"{artifact_data.get('className')}_{artifact_data.get('artifactName')}_{artifact_data.get('lineNumber')}"
+            
+            # One entry per artifact
+            test_results[artifact_key] = {"vulnerable": "Not tested", "tests": []}
+            
+            if all_call_paths and len(all_call_paths) > 0:
+                for call_path in all_call_paths:
+                    
+                    # For ech call path, store the generated tests
+                    call_path_tests = []
+                    for i in range(len(call_path) - 1, -1, -1):
+                        print(f"Call path {i}: {call_path[i]}")
+                        entry_data = call_path[i]
+                        try:
+                            test = generate_fuzzer(
+                                data=entry_data,
+                                exit_directory=str(test_dir)
+                            )
+                            test_info = TestInfo(str(test), TestStatus.CREATED).to_dict()
+                            
+                        except Exception as e:
+                            print(f"Error generating fuzzer: {e}")
+                            test_info = TestInfo("", TestStatus.ERROR_GENERATING)
+                        
+                        # Only add if not already generated
+                        if test_info["test_path"] not in test_already_generated:
+                            test_already_generated.add(test_info["test_path"])
+                            call_path_tests.append(test_info)
+                    test_results[artifact_key]["tests"].extend(call_path_tests)
             else:
                 print(f"No valid call paths found for artifact.")
+        write_test_info_to_json(owner, name, test_results)
+                
+    # Exectute fuzz tests
+    
                 
 def repair_tests(
     owner : str = typer.Argument(..., help="Owner of the GitHub repository where the sbom.json file is stored."),
@@ -178,11 +214,11 @@ def init(
     
 
 if __name__ == "__main__":
-    app()
-    # run(
-    #     owner="TFG-josrodlop19",
-    #     name="VulnerableProject1", 
-    #     sbom_path="sbom.json",  # Ruta relativa desde PROJECT_ROOT
-    #     pom_path="pom.xml",     # Ruta relativa desde PROJECT_ROOT
-    #     reload=False
-    # )
+    # app()
+    run(
+        owner="TFG-josrodlop19",
+        name="VulnerableProject1", 
+        sbom_path="sbom.json",
+        pom_path="pom.xml",
+        reload=False
+    )

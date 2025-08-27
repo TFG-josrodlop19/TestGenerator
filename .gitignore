@@ -6,6 +6,7 @@ vexgen/
 generated_vex/
 generated_fuzzers/
 OSS-Fuzz/
+tests_info/
 
 
 # Byte-compiled / optimized / DLL files

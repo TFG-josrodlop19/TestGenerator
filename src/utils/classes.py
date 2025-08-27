@@ -1,3 +1,4 @@
+from enum import Enum
 class FunctionInfo:
     
     def __init__(self, name: str):
@@ -21,3 +22,32 @@ class ArtifactInfoVex:
     
     def __str__(self):
         return f"ArtifactInfoVex(file_path='{self.file_path}', target_line={self.target_line}, target_name='{self.target_name}')"
+    
+    
+class TestStatus(Enum):
+    CREATED = "created"
+    ERROR_EXECUTING = "error_executing"
+    ERROR_GENERATING = "error_generating"
+    VULNERABLE = "vulnerable"
+    NOT_VULNERABLE = "not_vulnerable"
+
+class TestInfo:
+    def __init__(self, test_path:str, test_status:TestStatus):
+        self.test_path = test_path
+        self.test_status = test_status
+        
+    def __eq__(self, other):
+        if not isinstance(other, TestInfo):
+            return False
+        return self.test_path == other.test_path and self.test_status == other.test_status
+
+    def __hash__(self):
+        return hash((self.test_path, self.test_status))
+
+    def to_dict(self):
+        """Convierte el objeto a un diccionario serializable"""
+        return {
+            "test_path": self.test_path,
+            "test_status": self.test_status.value  # Usar .value para obtener el string
+        }
+        
