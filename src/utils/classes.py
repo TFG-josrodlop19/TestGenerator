@@ -1,4 +1,21 @@
 from enum import Enum
+
+class ConfidenceLevel(Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    ABSOLUTE = "absolute"
+    
+    def get_timeout_minutes(self):
+        """Returns the timeout in minutes for each confidence level"""
+        timeouts = {
+            ConfidenceLevel.LOW: 2,
+            ConfidenceLevel.MEDIUM: 10,
+            ConfidenceLevel.HIGH: 60,
+            ConfidenceLevel.ABSOLUTE: None  # No limit
+        }
+        return timeouts[self]
+
 class FunctionInfo:
     
     def __init__(self, name: str):

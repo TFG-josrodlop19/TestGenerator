@@ -8,7 +8,7 @@ from vexgen_caller.auth import signup, login
 from vexgen_caller.vex_generator import generate_vex, open_vex_file
 from utils.file_writer import resolve_path, generate_path_repo, write_test_info_to_json
 from utils.git_utils import clone_repo
-from utils.classes import TestStatus, TestInfo
+from utils.classes import TestStatus, TestInfo, ConfidenceLevel
 
 load_dotenv()
 
@@ -46,12 +46,18 @@ def run(
     name : str = typer.Argument(..., help="Name of the GitHub repository where the sbom.json file is stored."),
     sbom_path : str = typer.Argument(..., help="Path to the sbom.json file in the GitHub repository."),
     pom_path: str = typer.Argument(..., help="Path to the pom.xml file of the Maven project."),
-    reload: bool = typer.Option(False, "--reload", "-r", help="Force re-generation of the VEX file even if it already exists.")
-    # confidence
+    reload: bool = typer.Option(False, "--reload", "-r", help="Force re-generation of the VEX file even if it already exists."),
+    confidence: ConfidenceLevel = typer.Option(
+        ConfidenceLevel.MEDIUM, 
+        "--confidence", 
+        "-c", 
+        help="Confidence level for test execution. Low: 2 min, Medium: 10 min, High: 1 hour, Absolute: unlimited."
+    )
     ):
     """
     Generates vex and automatically runs tests.`
     """
+
     dest_path = Path(generate_path_repo(owner, name))
     # clone_repo(owner, name, dest_path)
     
@@ -138,12 +144,13 @@ def run(
                         except Exception as e:
                             print(f"Error generating fuzzer: {e}")
                             test_info = TestInfo("", TestStatus.ERROR_GENERATING)
+                            # TODO: add generic template 
                         
                         # Only add if not already generated
                         if test_info["test_path"] not in test_already_generated:
                             test_already_generated.add(test_info["test_path"])
                             call_path_tests.append(test_info)
-                    test_results[artifact_key]["tests"].extend(call_path_tests)
+                    test_results[artifact_key]["tests"].append(call_path_tests)
             else:
                 print(f"No valid call paths found for artifact.")
         write_test_info_to_json(owner, name, test_results)
@@ -168,45 +175,40 @@ def init(
     Initializes the project structure.
     """
     # Obtener el directorio actual desde donde se invoca el comando
-    current_dir = Path.cwd()
-    autofuzz_dir = current_dir / ".autofuzz"
+    file_paths = Path.cwd()
     
-    # Verificar si ya existe
-    if autofuzz_dir.exists() and not force:
-        print(f"Directory .autofuzz already exists at {autofuzz_dir}")
-        print("Use --force to overwrite existing structure")
-        return
+
     
     try:
         # Crear el directorio .autofuzz
-        autofuzz_dir.mkdir(exist_ok=force)
-        print(f"Successfully created .autofuzz directory at {autofuzz_dir}")
-        
+        file_paths.mkdir(exist_ok=force)
+        print(f"Successfully created .autofuzz directory at {file_paths}")
+
         # Crear build.sh
         build_sh_content = """#!/bin/bash
             # Build script for OSS-Fuzz fuzzing
             # Add your build commands here
             """
-        (autofuzz_dir / "build.sh").write_text(build_sh_content)
-        
+        (file_paths / "build.sh").write_text(build_sh_content)
+
         # Crear Dockerfile
         dockerfile_content = """# Dockerfile for OSS-Fuzz
             # Add your Docker configuration here
 
             """
-        (autofuzz_dir / "Dockerfile").write_text(dockerfile_content)
-        
+        (file_paths / "Dockerfile").write_text(dockerfile_content)
+
         # Crear project.yaml
         project_yaml_content = """# Project configuration for OSS-Fuzz
             # Add your project configuration here
 
             """
-        (autofuzz_dir / "project.yaml").write_text(project_yaml_content)
-        
+        (file_paths / "project.yaml").write_text(project_yaml_content)
+
         print("Created OSS-Fuzz configuration files:")
-        print(f"  - {autofuzz_dir / 'build.sh'}")
-        print(f"  - {autofuzz_dir / 'Dockerfile'}")
-        print(f"  - {autofuzz_dir / 'project.yaml'}")
+        print(f"  - {file_paths / 'build.sh'}")
+        print(f"  - {file_paths / 'Dockerfile'}")
+        print(f"  - {file_paths / 'project.yaml'}")
         
     except Exception as e:
         print(f"Error creating .autofuzz directory: {e}")
