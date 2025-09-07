@@ -3,8 +3,9 @@ import json
 from unicodedata import normalize
 import string
 from pathlib import Path
+from utils.classes import TestStatus
 
-def write_token_to_file(token: str, user_id: str = None):
+def write_token_to_file(token: str, refresh_token: str, user_id: str):
     try:
         file_path = os.getenv("VEXGEN_TOKEN_FILE")
         
@@ -19,7 +20,8 @@ def write_token_to_file(token: str, user_id: str = None):
         # Create JSON data
         token_data = {
             "user_id": user_id,
-            "token": token
+            "token": token,
+            "refresh_token": refresh_token
         }
         
         # Create/write to file (automatically creates if doesn't exist)
@@ -30,6 +32,22 @@ def write_token_to_file(token: str, user_id: str = None):
     except Exception as e:
         print(f"Failed to write token to file: {e}")
         
+def update_token_in_file(token: str):
+    try:
+        file_path = os.getenv("VEXGEN_TOKEN_FILE")
+        
+        file_path = os.path.expanduser(file_path)
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Token file not found: {file_path}")
+        
+        with open(file_path, 'r') as file:
+            token_data = json.load(file)
+            token_data['token'] = token
+            
+        with open(file_path, 'w') as file:
+            json.dump(token_data, file, indent=2)
+    except Exception as e:
+        print(f"Failed to update token in file: {e}")
 
 def os_path_separators():
     seps = []
@@ -123,7 +141,7 @@ def generate_path_repo(owner:str, name:str) -> str:
     Generates a valid and secure path for the repository from its owner and name.
     """
     
-    folder_name = f"{owner}_{name}"
+    folder_name = f"{owner}_{name}".lower()
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     repo_path = os.path.join(project_root, "OSS-Fuzz", "projects")
     return make_valid_file_path(folder_name, repo_path)
@@ -144,3 +162,45 @@ def write_test_info_to_json(owner:str, name:str, info:dict):
     
     with open(file_path, "w") as f:
         json.dump(info, f, indent=4)
+
+
+def update_test_status(owner: str, name: str, artifact_key: str, test_path: str, new_status: TestStatus):
+    try:
+        current_info = read_test_info_from_json(owner, name)
+        
+        if artifact_key in current_info:
+            tests = current_info[artifact_key].get("tests", [])
+            updated = False
+            
+            # Buscar y actualizar el test por su test_path
+            for i, call_stack in enumerate(tests):
+                if call_stack != []:
+                    for j, test in enumerate(call_stack):
+                        if test and test.get("test_path") == test_path:
+                            current_info[artifact_key]["tests"][i][j]["test_status"] = new_status
+                            updated = True
+                            break
+                if updated:
+                    break
+            
+            if updated:
+                write_test_info_to_json(owner, name, current_info)
+                print(f"Updated test status for {test_path}: {new_status}")
+            else:
+                print(f"Test not found: {test_path}")
+        else:
+            print(f"Artifact not found: {artifact_key}")
+            
+    except Exception as e:
+        print(f"Error updating test status: {e}")
+        raise
+
+
+def read_test_info_from_json(owner:str, name:str) -> dict:
+    info_path = generate_test_info_path(owner, name)
+    info_path = os.path.join(info_path, "tests_info.json")
+    if not os.path.exists(info_path):
+        raise FileNotFoundError(f"Info file does not exist: {info_path}")
+    with open(info_path, 'r') as f:
+        info = json.load(f)
+    return info    

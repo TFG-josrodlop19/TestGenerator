@@ -1,39 +1,72 @@
-{% macro build_parameter(param, parent_name="", indent_level=2) %}
-{% set indent = " " * (indent_level * 4) %}
-{% set constructor_list = param.constructor or param.parameterConstructors %}
-{% if constructor_list %}
-{% set constructor = constructor_list[0] %}
-{% for nested_param in constructor.parameters %}
-{{ build_parameter(nested_param, parent_name=parent_name + param.name + "_", indent_level=indent_level) }}
-{% endfor %}
-{{ indent }}{{ param.type }} {{ parent_name }}{{ param.name }} = new {{ param.type }}(
-{% for nested_param in constructor.parameters %}
-{{ " " * ((indent_level + 1) * 4) }}{{ parent_name }}{{ param.name }}_{{ nested_param.name }}{% if not loop.last %},{% endif %}
-{% endfor %}
-{{ indent }});
-{% else %}
-{{ indent }}{{ param.type }} {{ parent_name }}{{ param.name }} = dataProvider.{{ param.fuzz_method }};
-{% endif %}
-{% endmacro %}
-{{ packageName }};
+{# ============================================================================= #}
+{#                                   MACROS                                     #}
+{# ============================================================================= #}
 
+{# Macro para construir parámetros de forma recursiva #}
+{% macro build_parameter(param, parent_name="", indent_level=2) %}
+    {% set indent = " " * (indent_level * 4) %}
+    {% set constructor_list = param.constructor or param.parameterConstructors %}
+    
+    {% if constructor_list %}
+        {# Si el parámetro tiene constructor, crear parámetros anidados #}
+        {% set constructor = constructor_list[0] %}
+        
+        {# Recursivamente construir parámetros del constructor #}
+        {% for nested_param in constructor.parameters %}
+{{ build_parameter(nested_param, parent_name=parent_name + param.name + "_", indent_level=indent_level) }}
+        {% endfor %}
+        
+        {# Crear la instancia del objeto complejo #}
+{{ indent }}{{ param.type }} {{ parent_name }}{{ param.name }} = new {{ param.type }}(
+        {% for nested_param in constructor.parameters %}
+{{ " " * ((indent_level + 1) * 4) }}{{ parent_name }}{{ param.name }}_{{ nested_param.name }}{% if not loop.last %},{% endif %}
+        {% endfor %}
+{{ indent }});
+    {% else %}
+        {# Parámetro simple, usar dataProvider directamente #}
+{{ indent }}{{ param.type }} {{ parent_name }}{{ param.name }} = {{ param.fuzz_method }};
+    {% endif %}
+{% endmacro %}
+
+{# Macro para encontrar y recopilar imports necesarios #}
+{% macro find_imports(params) %}
+    {% for param in params %}
+        {% set constructor_list = param.constructor or param.parameterConstructors %}
+        {% if constructor_list %}
+            {% if param.type not in imports %}
+                {% set _ = imports.append(param.type) %}
+            {% endif %}
+{{ find_imports(constructor_list[0].parameters) }}
+        {% endif %}
+    {% endfor %}
+{% endmacro %}
+
+{# ============================================================================= #}
+{#                            ESTRUCTURA DEL ARCHIVO                            #}
+{# ============================================================================= #}
+
+{# Package declaration #}
+{{ packageName }}
+
+{# Imports básicos #}
 import com.code_intelligence.jazzer.api.FuzzedDataProvider;
 import {{ qualifierType }};
+
+{# Recopilar imports adicionales #}
 {% set imports = [] %}
-{% macro find_imports(params) %}
-{% for param in params %}
-{% set constructor_list = param.constructor or param.parameterConstructors %}
-{% if constructor_list %}
-{% if param.type not in imports %}{% set _ = imports.append(param.type) %}{% endif %}
-{{ find_imports(constructor_list[0].parameters) }}
-{% endif %}
-{% endfor %}
-{% endmacro %}
 {{ find_imports(parameters) }}
+
+{# Imports dinámicos basados en parámetros #}
 {% for import_path in imports|unique %}
 import {{ import_path }};
 {% endfor %}
+
+{# Import estándar para excepciones #}
 import java.io.IOException;
+
+{# ============================================================================= #}
+{#                               CLASE FUZZER                                   #}
+{# ============================================================================= #}
 
 /**
  * Fuzzer generado para la clase {{ className }}.
@@ -43,26 +76,26 @@ public class {{ className | default(qualifierType_simple_name) }}{{ artifactName
 
     public static void fuzzerTestOneInput(FuzzedDataProvider dataProvider) {
         
-        // --- Creación de la instancia ---
+        // === CREACIÓN DE LA INSTANCIA ===
         {% if not isStatic and nodeType != 'CtConstructorImpl' %}
-        {{ " " * 8 }}{{ qualifierType_simple_name }} {{ instance_name }} = new {{ qualifierType_simple_name }}();
+        {{ qualifierType_simple_name }} {{ instance_name }} = new {{ qualifierType_simple_name }}();
         {% endif %}
 
-        // --- Generación de parámetros ---
-{% for param in parameters %}
+        // === GENERACIÓN DE PARÁMETROS ===
+        {% for param in parameters %}
 {{ build_parameter(param, indent_level=2).strip() }}
-{% endfor %}
+        {% endfor %}
 
-        // --- Llamada al método o constructor objetivo ---
+        // === LLAMADA AL MÉTODO O CONSTRUCTOR OBJETIVO ===
         try {
             {% if nodeType == 'CtConstructorImpl' %}
-            {{ " " * 12 }}new {{ qualifierType_simple_name }}({{ parameters | map(attribute='name') | join(', ') }});
+            new {{ qualifierType_simple_name }}({{ parameters | map(attribute='name') | join(', ') }});
             {% else %}
-            {% if isStatic %}
-            {{ " " * 12 }}{{ qualifierType_simple_name }}.{{ artifactName }}({{ parameters | map(attribute='name') | join(', ') }});
-            {% else %}
-            {{ " " * 12 }}{{ instance_name }}.{{ artifactName }}({{ parameters | map(attribute='name') | join(', ') }});
-            {% endif %}
+                {% if isStatic %}
+            {{ qualifierType_simple_name }}.{{ artifactName }}({{ parameters | map(attribute='name') | join(', ') }});
+                {% else %}
+            {{ instance_name }}.{{ artifactName }}({{ parameters | map(attribute='name') | join(', ') }});
+                {% endif %}
             {% endif %}
         } catch (Exception e) {
             // Ignorar excepciones esperadas

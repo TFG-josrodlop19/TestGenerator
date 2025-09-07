@@ -43,6 +43,7 @@ class ArtifactInfoVex:
     
 class TestStatus(Enum):
     CREATED = "created"
+    ERROR_BUILDING = "error_building"
     ERROR_EXECUTING = "error_executing"
     ERROR_GENERATING = "error_generating"
     VULNERABLE = "vulnerable"
