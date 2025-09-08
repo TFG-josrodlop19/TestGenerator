@@ -116,8 +116,8 @@ if [ -d "vexgen" ]; then
     
     # Remove vexgen directory
     print_status "Removing vexgen directory..."
-    rm -rf vexgen
-    print_success "Vexgen directory removed."
+    # rm -rf vexgen
+    # print_success "Vexgen directory removed."
 else
     print_warning "Vexgen directory not found."
 fi
