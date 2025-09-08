@@ -55,6 +55,10 @@ import {{ qualifierType }};
 {# Recopilar imports adicionales #}
 {% set imports = [] %}
 {{ find_imports(parameters) }}
+{# También buscar imports en constructorParameters #}
+{% if constructorParameters %}
+{{ find_imports(constructorParameters[0].parameters) }}
+{% endif %}
 
 {# Imports dinámicos basados en parámetros #}
 {% for import_path in imports|unique %}
@@ -76,15 +80,28 @@ public class {{ className | default(qualifierType_simple_name) }}{{ artifactName
 
     public static void fuzzerTestOneInput(FuzzedDataProvider dataProvider) {
         
-        // === CREACIÓN DE LA INSTANCIA ===
-        {% if not isStatic and nodeType != 'CtConstructorImpl' %}
-        {{ qualifierType_simple_name }} {{ instance_name }} = new {{ qualifierType_simple_name }}();
-        {% endif %}
-
-        // === GENERACIÓN DE PARÁMETROS ===
+        // === GENERACIÓN DE PARÁMETROS PARA MÉTODOS ===
         {% for param in parameters %}
 {{ build_parameter(param, indent_level=2).strip() }}
         {% endfor %}
+
+        // === CREACIÓN DE LA INSTANCIA ===
+        {% if not isStatic and nodeType != 'CtConstructorImpl' %}
+            {% if constructorParameters and constructorParameters|length > 0 %}
+                {# Generar parámetros para el constructor de la instancia #}
+                {% for param in constructorParameters[0].parameters %}
+{{ build_parameter(param, parent_name="constructor_", indent_level=2).strip() }}
+                {% endfor %}
+        
+        {{ qualifierType_simple_name }} {{ instance_name }} = new {{ qualifierType_simple_name }}(
+                {% for param in constructorParameters[0].parameters %}
+            constructor_{{ param.name }}{% if not loop.last %},{% endif %}
+                {% endfor %}
+        );
+            {% else %}
+        {{ qualifierType_simple_name }} {{ instance_name }} = new {{ qualifierType_simple_name }}();
+            {% endif %}
+        {% endif %}
 
         // === LLAMADA AL MÉTODO O CONSTRUCTOR OBJETIVO ===
         try {

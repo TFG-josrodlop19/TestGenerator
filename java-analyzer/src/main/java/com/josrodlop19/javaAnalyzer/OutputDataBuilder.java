@@ -99,7 +99,6 @@ public class OutputDataBuilder {
 
         // Get constructor parameters info for the declaring type
         if (!method.isStatic()) {
-            System.out.println("Extracting constructor info for type: " + method.getDeclaringType().getReference());
             List<Map<String, Object>> constructorParamsData = extractConstructorInfo(method.getDeclaringType().getReference(), recursionDepth);
             treeNode.setConstructorParameters(constructorParamsData);
         }

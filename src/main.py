@@ -112,7 +112,6 @@ def run(
     artifacts_data = None
     if artifacts_json and artifacts_json != "[]":
         artifacts_data = get_artifact_info(str(resolved_pom_path), artifacts_json)
-        # print(artifacts_data)
     else:
         print("No artifacts found in the VEX file.")
         return

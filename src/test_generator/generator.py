@@ -217,6 +217,13 @@ def generate_fuzzer(data: dict, exit_directory: str = "."):
     
     # Procesar los datos
     standardize_parameters(data.get("parameters", []))
+    
+    # NUEVO: Procesar también los parámetros del constructor
+    if "constructorParameters" in data and data["constructorParameters"]:
+        for constructor_info in data["constructorParameters"]:
+            if "parameters" in constructor_info:
+                standardize_parameters(constructor_info["parameters"])
+    
     data["qualifierType_simple_name"] = data["qualifierType"].split('.')[-1]
     data["instance_name"] = data.get("qualifierName", data["qualifierType_simple_name"]).replace('this.', '').lower()
     
@@ -250,4 +257,3 @@ def generate_fuzzer(data: dict, exit_directory: str = "."):
         
     print(f"Fuzzer generado en: {ruta_salida}")
     return ruta_salida
-    return str(ruta_salida)
