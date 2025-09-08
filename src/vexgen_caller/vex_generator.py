@@ -90,7 +90,7 @@ def generate_vex(owner:str, name:str):
         else:
             raise ValueError("Response does not contain a valid VEX file: " + response.json().get('message', 'Unknown error'))
     except requests.RequestException as e:
-        print(f"Error generating VEX: {response.json().get('detail', 'Unknown error')}")
+        print(f"Error generating TIX: {response.json().get('detail', 'Unknown error')}")
 
 
 
