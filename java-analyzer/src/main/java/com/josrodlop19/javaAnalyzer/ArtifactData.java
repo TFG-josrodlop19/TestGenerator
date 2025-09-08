@@ -26,6 +26,7 @@ public class ArtifactData {
     private Boolean isStatic;
     private Boolean isPublic;
     private List<Map<String, Object>> parameters;
+    private List<Map<String, Object>> constructorParameters;
 
     // Call tree atributes
     private List<ArtifactData> callers;

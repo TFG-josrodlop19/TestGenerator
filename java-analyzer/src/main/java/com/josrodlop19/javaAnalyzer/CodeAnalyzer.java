@@ -145,7 +145,7 @@ public class CodeAnalyzer {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         Map<String, Object> completeData = new LinkedHashMap<>();
         completeData.put("artifactData", this.artifactData);
-        completeData.put("callStack", this.callStack);
+        // completeData.put("callStack", this.callStack);
         completeData.put("allCallPaths", this.allCallPaths);
         String jsonOutput = gson.toJson(completeData);
         return jsonOutput;

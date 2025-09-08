@@ -23,26 +23,26 @@ def build_tests(owner: str, name: str):
     
     try:
         # Ejecutar el comando build_fuzzers usando Python del venv
-        # print(f"Building fuzzers for project: {project}")
+        print(f"Building fuzzers for project: {project}")
         
-        # print(f"Command: {sys.executable} infra/helper.py build_fuzzers {project}")
+        print(f"Command: {sys.executable} infra/helper.py build_fuzzers {project}")
         
-        # result = subprocess.run([
-        #     sys.executable,  # Usar Python del entorno virtual activo
-        #     "infra/helper.py", 
-        #     "build_fuzzers", 
-        #     project
-        # ], 
-        # cwd=oss_fuzz_root,  # Cambiar directorio de trabajo
-        # capture_output=True, 
-        # text=True, 
-        # check=True
-        # )
+        result = subprocess.run([
+            sys.executable,  # Usar Python del entorno virtual activo
+            "infra/helper.py", 
+            "build_fuzzers", 
+            project
+        ], 
+        cwd=oss_fuzz_root,  # Cambiar directorio de trabajo
+        capture_output=True, 
+        text=True, 
+        check=True
+        )
         
-        # print("Build successful!")
-        # print("STDOUT:", result.stdout)
-        # if result.stderr:
-        #     print("STDERR:", result.stderr)
+        print("Build successful!")
+        print("STDOUT:", result.stdout)
+        if result.stderr:
+            print("STDERR:", result.stderr)
         
         check_compilation_failures(owner, name)
             
@@ -123,7 +123,7 @@ def execute_tests(owner, name):
                                         project,
                                         fuzzer_name,
                                         "--",
-                                        "-max_total_time=1200",    # 10 minutos máximo
+                                        "-max_total_time=100",    # 10 minutos máximo
                                         "-print_final_stats=1"    # Mostrar estadísticas al final
                                     ], 
                                     cwd=oss_fuzz_root,

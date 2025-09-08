@@ -27,7 +27,9 @@ public class StackCallProcessor {
     @Setter(AccessLevel.PRIVATE)
     private CtModel AST;
 
+    // Executable is the superclass for both CtMethod and CtConstructor
     private Map<String, CtExecutable<?>> executables;
+    // CtAbstractInvocation is the superclass for both CtInvocation and CtConstructorCall
     private Map<String, List<CtAbstractInvocation<?>>> methodInvocations;
     private Map<String, List<CtConstructorCall<?>>> constructorCalls;
     private ArtifactData callTree;
@@ -56,7 +58,7 @@ public class StackCallProcessor {
         // Agregar el árbol de llamadas a artifactData
         this.setCallTree(callTree);
 
-        // También generar todas las rutas posibles como lista plana
+        // También generar todas las rutas posibles como lista
         List<List<Map<String, Object>>> allPaths = new ArrayList<>();
         extractAllPaths(callTree, new ArrayList<>(), allPaths);
         this.setAllCallPaths(allPaths);
@@ -196,6 +198,7 @@ public class StackCallProcessor {
         nodeInfo.put("parameters", treeNode.getParameters());
         nodeInfo.put("isStatic", treeNode.getIsStatic());
         nodeInfo.put("isPublic", treeNode.getIsPublic());
+        nodeInfo.put("constructorParameters", treeNode.getConstructorParameters());
 
         List<Map<String, Object>> newPath = new ArrayList<>(currentPath);
         newPath.add(nodeInfo);

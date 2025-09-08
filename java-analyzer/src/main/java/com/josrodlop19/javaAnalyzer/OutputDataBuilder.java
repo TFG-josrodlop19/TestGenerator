@@ -97,6 +97,13 @@ public class OutputDataBuilder {
         List<Map<String, Object>> paramsData = argumentsInfo(method, recursionDepth);
         treeNode.setParameters(paramsData);
 
+        // Get constructor parameters info for the declaring type
+        if (!method.isStatic()) {
+            System.out.println("Extracting constructor info for type: " + method.getDeclaringType().getReference());
+            List<Map<String, Object>> constructorParamsData = extractConstructorInfo(method.getDeclaringType().getReference(), recursionDepth);
+            treeNode.setConstructorParameters(constructorParamsData);
+        }
+
         return treeNode;
     }
 
@@ -312,6 +319,7 @@ public class OutputDataBuilder {
                 typeName.equals("java.lang.Character") || typeName.equals("java.lang.Byte") ||
                 typeName.equals("java.lang.Short") || typeName.equals("java.lang.Object") ||
                 typeName.startsWith("java.util.") || typeName.startsWith("java.io.") ||
-                typeName.startsWith("java.net.") || typeName.startsWith("java.time.");
+                typeName.startsWith("java.net.") || typeName.startsWith("java.time.") ||
+                typeName.startsWith("java.lang.");
     }
 }
