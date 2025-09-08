@@ -1,4 +1,5 @@
 import os
+import subprocess
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
@@ -192,6 +193,38 @@ def standardize_parameters(params: list):
             java_type = param.get('type')
             param['fuzz_method'] = TYPE_TO_FUZZ_FUNCTION.get(java_type, f"// Tipo no soportado: {java_type}")
 
+def format_java_file(file_path: str):
+    """
+    Formatea un archivo Java usando Google Java Format.
+    
+    Args:
+        file_path (str): Ruta del archivo Java a formatear
+    """
+    try:
+        # Obtener la ruta del proyecto (donde está este archivo)
+        root_path = Path(__file__).parent.parent.parent  # src/test_generator/generator.py -> proyecto raíz
+        google_format_jar = root_path / "libraries" / "google-java-format-1.28.0-all-deps.jar"
+
+        if not google_format_jar.exists():
+            print("Google Java Format JAR no encontrado, saltando formateo")
+            return
+        
+        # Ejecutar el formatter
+        result = subprocess.run([
+            "java", "-jar", str(google_format_jar),
+            "--replace", str(file_path)
+        ], timeout=30)
+        
+        if result.returncode == 0:
+            print("Código formateado correctamente")
+        else:
+            print(f"Error al formatear: {result.stderr}")
+            
+    except subprocess.TimeoutExpired:
+        print("Timeout al formatear código")
+    except Exception as e:
+        print(f"Error inesperado al formatear: {e}")
+
 def generate_fuzzer(data: dict, exit_directory: str = "."):
     """
     Genera un fuzzer basado en los datos proporcionados.
@@ -254,6 +287,9 @@ def generate_fuzzer(data: dict, exit_directory: str = "."):
     # Escribir el archivo
     with open(ruta_salida, "w", encoding="utf-8") as f:
         f.write(codigo_generado)
+    
+    # Formatear el código Java usando Google Java Format
+    format_java_file(ruta_salida)
         
     print(f"Fuzzer generado en: {ruta_salida}")
     return ruta_salida
