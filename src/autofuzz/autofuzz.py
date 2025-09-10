@@ -9,6 +9,10 @@ def build_tests(owner: str, name: str):
     """
     Ejecuta el build de fuzzers usando OSS-Fuzz helper.py
     """
+    
+    info = read_test_info_from_json(owner, name)
+    if info is None or info == {}:
+        raise ValueError(f"No test info generated for {owner}/{name}")
     repo_path = generate_path_repo(owner, name)
     if not os.path.exists(repo_path):
         raise FileNotFoundError(f"Repository path does not exist: {repo_path}")

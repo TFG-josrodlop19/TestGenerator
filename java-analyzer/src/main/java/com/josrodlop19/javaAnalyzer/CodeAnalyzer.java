@@ -59,16 +59,15 @@ public class CodeAnalyzer {
     public void processCode() {
         // Main method to process the code
         findFunctionInvocation();
-
-        ArtifactData artifactData = OutputDataBuilder.extractArtifactData(this.targetInvocation);
-
-        this.setArtifactData(artifactData);
-        // extractCallStack();
-        StackCallProcessor stackCallProcessor = new StackCallProcessor(this.getTargetInvocation(), this.getAST());
-        stackCallProcessor.extractCallStack();
-        this.setCallStack(stackCallProcessor.getCallTree());
-        this.setAllCallPaths(stackCallProcessor.getAllCallPaths());
-
+        if (this.targetInvocation != null) {
+            ArtifactData artifactData = OutputDataBuilder.extractArtifactData(this.targetInvocation);
+            this.setArtifactData(artifactData);
+            // extractCallStack();
+            StackCallProcessor stackCallProcessor = new StackCallProcessor(this.getTargetInvocation(), this.getAST());
+            stackCallProcessor.extractCallStack();
+            this.setCallStack(stackCallProcessor.getCallTree());
+            this.setAllCallPaths(stackCallProcessor.getAllCallPaths());
+        }
     }
 
     public void extractAST() {

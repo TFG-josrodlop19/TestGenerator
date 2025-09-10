@@ -2,10 +2,11 @@ import os
 import requests
 import json
 import zipfile
-from utils.file_writer import make_valid_file_path as sanitize_path
+from utils.file_writer import make_valid_file_path as sanitize_path, generate_path_repo
 from utils.request_helper import authenticated_request
 from utils.classes import ArtifactInfoVex
 import shutil
+from pathlib import Path
 
 def generate_download_path(owner:str, name:str) -> str:
     folder_name = f"{owner}/{name}"
@@ -97,6 +98,8 @@ def generate_vex(owner:str, name:str):
 def open_tix_file(owner:str, name:str) -> str:
     generate_download_path(owner, name)
 
+    repo_path = Path(generate_path_repo(owner, name))
+
     tix_file = None
     # In case there are multiple tix files, take the first one
     for item in os.listdir(generate_download_path(owner, name)):
@@ -131,20 +134,30 @@ def open_tix_file(owner:str, name:str) -> str:
                     used_artifacts = file.get("used_artefacts", [])
                     for artifact in used_artifacts:
                         artifact_name = artifact.get("artefact_name")
-                        used_in_lines = artifact.get("used_in_lines", [])
+                        used_in_lines = artifact.get("used_in_lines", []).strip().split(',')
                         for line in used_in_lines:
-                            artifact_data = ArtifactInfoVex(
-                                file_path=file_path,
-                                target_line=line,
-                                target_name=artifact_name
-                            )
-                            artifacts.add(artifact_data)
+                            # Solo añadir si la línea es un número
+                            try:
+                                target_line = int(line)
+                                artifact_data = ArtifactInfoVex(
+                                    file_path=file_path,
+                                    target_line=target_line,
+                                    target_name=artifact_name
+                                )
+                                artifacts.add(artifact_data)
+                            except Exception:
+                                continue  # Saltar si no es un número
+                            
     
     # Convert to JSON format
     artifacts_list = []
     for artifact in artifacts:
+        
+        # By default, vexgen provides repo path in the file_path, but in OSS-Fuzz we use another name to avoid conflicts
+        relative_path = Path(artifact.file_path)
+        relative_path = Path(*relative_path.parts[1:])
         artifacts_list.append({
-            "file_path": os.path.abspath(artifact.file_path),
+            "file_path": str(repo_path / relative_path),
             "target_line": str(artifact.target_line),
             "target_name": artifact.target_name
         })

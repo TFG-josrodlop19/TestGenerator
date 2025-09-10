@@ -16,13 +16,13 @@ public class App {
         // String pomPath = args[0];
         // String artifactsJson = args[1];
 
-        String pomPath = "/home/josue/universidad/TFG/code/TestGenerator/OSS-Fuzz/projects/tfg-josrodlop19_vulnerableproject1/pom.xml";
+        String pomPath = "/home/josue/universidad/TFG/code/TestGenerator/OSS-Fuzz/projects/tfg-josrodlop19_vulnerableproject2/pom.xml";
         String artifactsJson = 
                 "[\n" +
                 "  {\n" +
-                "    \"file_path\": \"/home/josue/universidad/TFG/code/TestGenerator/OSS-Fuzz/projects/tfg-josrodlop19_vulnerableproject1/src/main/java/com/example/JsonProcessor.java\",\n" +
-                "    \"target_line\": 24,\n" +
-                "    \"target_name\": \"readValue\"\n" +
+                "    \"file_path\": \"/home/josue/universidad/TFG/code/TestGenerator/VulnerableProject2/src/main/java/com/example/VulnerableApp.java\",\n" +
+                "    \"target_line\": 28,\n" +
+                "    \"target_name\": \"XStream\"\n" +
                 "  }\n" +
                 "]";
         try {

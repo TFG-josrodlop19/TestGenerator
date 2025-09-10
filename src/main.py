@@ -99,6 +99,9 @@ def run(
     # Generate artifacts info with Spoon
     artifacts_data = None
     if artifacts_json and artifacts_json != "[]":
+        print(f"Resolved POM Path: {resolved_pom_path}")
+        print(f"Artifacts JSON: {artifacts_json}")
+        
         artifacts_data = get_artifact_info(str(resolved_pom_path), artifacts_json)
     else:
         print("No artifacts found in the VEX file.")
@@ -113,46 +116,47 @@ def run(
         test_results = {}
         test_already_generated = set()
         for artifact in artifacts_data:
-            all_call_paths = artifact.get("allCallPaths", [])
-            artifact_data = artifact.get("artifactData")
-            artifact_key = f"{artifact_data.get('className')}_{artifact_data.get('artifactName')}_{artifact_data.get('lineNumber')}"
-            
-            # One entry per artifact
-            test_results[artifact_key] = {"vulnerable": "Not tested", "tests": []}
-            
-            if all_call_paths and len(all_call_paths) > 0:
-                for call_path in all_call_paths:
-                    
-                    # For ech call path, store the generated tests
-                    call_path_tests = []
-                    for i in range(len(call_path) - 1, -1, -1):
-                        print(f"Call path {i}: {call_path[i]}")
-                        entry_data = call_path[i]
-                        try:
-                            test = generate_fuzzer(
-                                data=entry_data,
-                                exit_directory=str(test_dir)
-                            )
-                            test_info = TestInfo(str(test), TestStatus.CREATED).to_dict()
-                            
-                        except Exception as e:
-                            print(f"Error generating fuzzer: {e}")
-                            test_info = TestInfo("", TestStatus.ERROR_GENERATING)
-                            # TODO: add generic template 
+            if artifact != {}:
+                all_call_paths = artifact.get("allCallPaths", [])
+                artifact_data = artifact.get("artifactData")
+                artifact_key = f"{artifact_data.get('className')}_{artifact_data.get('artifactName')}_{artifact_data.get('lineNumber')}"
+                
+                # One entry per artifact
+                test_results[artifact_key] = {"vulnerable": "Not tested", "tests": []}
+                
+                if all_call_paths and len(all_call_paths) > 0:
+                    for call_path in all_call_paths:
                         
-                        # Only add if not already generated
-                        if test_info["test_path"] not in test_already_generated:
-                            test_already_generated.add(test_info["test_path"])
-                            call_path_tests.append(test_info)
-                    test_results[artifact_key]["tests"].append(call_path_tests)
-            else:
-                print(f"No valid call paths found for artifact.")
+                        # For ech call path, store the generated tests
+                        call_path_tests = []
+                        for i in range(len(call_path) - 1, -1, -1):
+                            print(f"Call path {i}: {call_path[i]}")
+                            entry_data = call_path[i]
+                            try:
+                                test = generate_fuzzer(
+                                    data=entry_data,
+                                    exit_directory=str(test_dir)
+                                )
+                                test_info = TestInfo(str(test), TestStatus.CREATED).to_dict()
+                                
+                            except Exception as e:
+                                print(f"Error generating fuzzer: {e}")
+                                test_info = TestInfo("", TestStatus.ERROR_GENERATING)
+                                # TODO: add generic template 
+                            
+                            # Only add if not already generated
+                            if test_info["test_path"] not in test_already_generated:
+                                test_already_generated.add(test_info["test_path"])
+                                call_path_tests.append(test_info)
+                        test_results[artifact_key]["tests"].append(call_path_tests)
+                else:
+                    print(f"No valid call paths found for artifact.")
         write_test_info_to_json(owner, name, test_results)
         
                 
-    # Exectute fuzz tests
-    build_tests(owner, name)
-    execute_tests(owner, name) 
+        # Exectute fuzz tests
+        build_tests(owner, name)
+        execute_tests(owner, name) 
      
      
      
@@ -225,9 +229,9 @@ if __name__ == "__main__":
     # app()
     run(
         owner="TFG-josrodlop19",
-        name="VulnerableProject1", 
+        name="VulnerableProject2", 
         pom_path="pom.xml",
-        reload=True
+        reload=False
     )
     
     # securechaindev / vex_generation_test 
