@@ -1,111 +1,109 @@
 from sqlalchemy import (
-    create_engine, Column, Integer, String, Float, DateTime, Enum, ForeignKey, Table
+    create_engine, Column, Integer, String, Float, DateTime, Enum, ForeignKey, Table, UniqueConstraint
 )
-from sqlalchemy.orm import declarative_base, relationship
-import enum
+from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
+from utils.classes import TestStatus, ConfidenceLevel, VulnerabilityStatus
 
-Base = declarative_base()
+Base = DeclarativeBase()
 
-# ---------------- ENUMS ---------------- #
-class VulnerabilityStatus(enum.Enum):
-    Affected = "Affected"
-    NotAffected = "NotAffected"
-
-class TestStatus(enum.Enum):
-    Created = "Created"
-    ErrorGenerating = "ErrorGenerating"
-    ErrorBuilding = "ErrorBuilding"
-    ErrorExecuting = "ErrorExecuting"
-    Vulnerable = "Vulnerable"
-    NotVulnerable = "NotVulnerable"
-
-# ---------------- ASSOCIATION TABLES ---------------- #
-# Relación muchos-a-muchos entre Vulnerability y CWE
+# Association tables
 vulnerability_cwe = Table(
     "vulnerability_cwe",
     Base.metadata,
-    Column("vulnerability_id", Integer, ForeignKey("vulnerability.id"), primary_key=True),
-    Column("cwe_id", Integer, ForeignKey("cwe.id"), primary_key=True),
+    Column("vulnerability_id", ForeignKey("vulnerability.id"), primary_key=True),
+    Column("cwe_id",ForeignKey("cwe.id"), primary_key=True),
+)
+
+vulnerability_artifact = Table(
+    "vulnerability_artifact",
+    Base.metadata,
+    Column("vulnerability_id", ForeignKey("vulnerability.id"), primary_key=True),
+    Column("artifact_id", ForeignKey("artifact.id"), primary_key=True),
 )
 
 # ---------------- ENTIDADES ---------------- #
 class Project(Base):
     __tablename__ = "project"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    owner = Column(String, nullable=False)
-    name = Column(String, nullable=False)
-    pomPath = Column(String)
-
-    # Relación: un proyecto tiene muchos scanners
-    scanners = relationship("Scanner", back_populates="project")
-
+    __table_args__ = (UniqueConstraint("owner", "name", name="pk_owner_name"),)
+    
+    #PK
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    owner: Mapped[str] = mapped_column(nullable=False)
+    name: Mapped[str] = mapped_column(nullable=False)
+    
+    #Attibutes
+    pomPath: Mapped[str] = mapped_column(nullable=False)
+    
+    #FK
+    scanners: Mapped[list["Scanner"]] = relationship()
 class Scanner(Base):
     __tablename__ = "scanner"
+    
+    #PK
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    date = Column(DateTime)
+    #Attributes
+    date: Mapped[DateTime]
+    confidence: Mapped[ConfidenceLevel]
 
-    project_id = Column(Integer, ForeignKey("project.id"))
-    project = relationship("Project", back_populates="scanners")
+    #FK
+    project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
+    vulnerabilities: Mapped[list["Vulnerability"]] = relationship()
 
-    # Relación: un scanner encuentra muchas vulnerabilidades
-    vulnerabilities = relationship("Vulnerability", back_populates="scanner")
 
 class CWE(Base):
     __tablename__ = "cwe"
+    #PK
+    id : Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String, nullable=False)
-
-    vulnerabilities = relationship(
-        "Vulnerability",
-        secondary=vulnerability_cwe,
-        back_populates="cwes"
-    )
+    #Attributes
+    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
 
 class Vulnerability(Base):
     __tablename__ = "vulnerability"
+    
+    #PK
+    id : Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    CVE = Column(String)
-    impact = Column(Float)
-    attackVector = Column(String)
-    status = Column(String)
+    #Attributes
+    name : Mapped[str]
+    impact : Mapped[float]
+    attackVector : Mapped[str]
+    status : Mapped[VulnerabilityStatus] = mapped_column(Enum(VulnerabilityStatus), default=VulnerabilityStatus.UNKNOWN)
 
-    scanner_id = Column(Integer, ForeignKey("scanner.id"))
-    scanner = relationship("Scanner", back_populates="vulnerabilities")
-
-    cwes = relationship(
-        "CWE",
-        secondary=vulnerability_cwe,
-        back_populates="vulnerabilities"
-    )
-
-    artifacts = relationship("Artifact", back_populates="vulnerability")
+    #FK
+    cwes: Mapped[list["CWE"]] = relationship(secondary=vulnerability_cwe)
+    scanner_id: Mapped[int] = mapped_column(ForeignKey("scanner.id"))
+    artifacts: Mapped[list["Artifact"]] = relationship(secondary=vulnerability_artifact, back_populates="vulnerabilities") 
+    
 
 class Artifact(Base):
     __tablename__ = "artifact"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    filePath = Column(String)
-    name = Column(String)
-    line = Column(Integer)
-    affected = Column(Enum(VulnerabilityStatus))
+    #PK
+    id : Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
-    vulnerability_id = Column(Integer, ForeignKey("vulnerability.id"))
-    vulnerability = relationship("Vulnerability", back_populates="artifacts")
+    #Attributes
+    filePath: Mapped[str] = mapped_column(String, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    line: Mapped[int] = mapped_column(Integer, nullable=False)
+    affected: Mapped[VulnerabilityStatus] = mapped_column(Enum(VulnerabilityStatus), nullable=False, default=VulnerabilityStatus.UNKNOWN)
 
-    fuzzer_id = Column(Integer, ForeignKey("fuzzer.id"))
-    fuzzer = relationship("Fuzzer", back_populates="artifacts")
+    #FK
+    vulnerabilities: Mapped[list["Vulnerability"]] = relationship(secondary=vulnerability_artifact, back_populates="artifacts")
+    fuzzers: Mapped[list["Fuzzer"]] = relationship(back_populates="artifact")
 
 class Fuzzer(Base):
     __tablename__ = "fuzzer"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    testPath = Column(String)
-    name = Column(String)
-    status = Column(Enum(TestStatus))
-    stackLevel = Column(Integer)
+    #PK
+    id : Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    
+    #Attributes
+    testPath: Mapped[str] = mapped_column(String, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[TestStatus] = mapped_column(Enum(TestStatus))
 
-    artifacts = relationship("Artifact", back_populates="fuzzer")
+    # FK
+    artifact_id : Mapped[int] = mapped_column(ForeignKey("artifact.id"))
+    artifact: Mapped["Artifact"] = relationship(back_populates="fuzzers")

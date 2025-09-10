@@ -39,7 +39,12 @@ class ArtifactInfoVex:
     
     def __str__(self):
         return f"ArtifactInfoVex(file_path='{self.file_path}', target_line={self.target_line}, target_name='{self.target_name}')"
-    
+
+
+class VulnerabilityStatus(Enum):
+    AFFECTED = "affected"
+    NOT_AFFECTED = "not_affected"
+    UNKNOWN = "unknown"
     
 class TestStatus(Enum):
     CREATED = "created"

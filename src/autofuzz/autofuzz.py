@@ -127,7 +127,7 @@ def execute_tests(owner, name):
                                         project,
                                         fuzzer_name,
                                         "--",
-                                        "-max_total_time=100",    # 10 minutos máximo
+                                        "-max_total_time=10",    # 10 minutos máximo
                                         "-print_final_stats=1"    # Mostrar estadísticas al final
                                     ], 
                                     cwd=oss_fuzz_root,

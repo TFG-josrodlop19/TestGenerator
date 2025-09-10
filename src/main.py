@@ -13,11 +13,8 @@ from autofuzz.autofuzz import build_tests, execute_tests
 
 load_dotenv()
 
-# Definir rutas base del proyecto
 PROJECT_ROOT = Path(__file__).parent.parent
 OSS_FUZZ_PROJECTS_ROOT = PROJECT_ROOT / "OSS-Fuzz" / "projects"
-# Just to test with a known vulnerable example
-VULNERABLE_EXAMPLES_ROOT = PROJECT_ROOT / "vulnerableCodeExamples"
 
 app = typer.Typer()
 
@@ -66,8 +63,6 @@ def run(
 
     resolved_pom_path = resolve_path(pom_path, dest_path)
     
-    print(f"Resolved POM path: {resolved_pom_path}")
-    
     # Verificar que los archivos existen
     if not resolved_pom_path.exists():
         raise FileNotFoundError(f"Error: POM file not found at {resolved_pom_path}")
@@ -99,7 +94,6 @@ def run(
     # Generate artifacts info with Spoon
     artifacts_data = None
     if artifacts_json and artifacts_json != "[]":
-        print(f"Resolved POM Path: {resolved_pom_path}")
         print(f"Artifacts JSON: {artifacts_json}")
         
         artifacts_data = get_artifact_info(str(resolved_pom_path), artifacts_json)
@@ -229,7 +223,7 @@ if __name__ == "__main__":
     # app()
     run(
         owner="TFG-josrodlop19",
-        name="VulnerableProject2", 
+        name="VulnerableProject1", 
         pom_path="pom.xml",
         reload=False
     )
