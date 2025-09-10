@@ -40,19 +40,7 @@ def vexgen_login(
     """
     password = typer.prompt("Password", hide_input=True)
     login(email, password)
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+     
     
 @app.command()
 def run(
@@ -98,15 +86,15 @@ def run(
         generate_vex(owner, name)
         artifacts_json = open_tix_file(owner, name)
 
-    artifacts_json = f"""
-    [
-        {{
-            "file_path": "{dest_path / 'src' / 'main' / 'java' / 'com' / 'example' / 'JsonProcessor.java'}",
-            "target_line": "24",
-            "target_name": "readValue"
-        }}
-    ]
-    """
+    # artifacts_json = f"""
+    # [
+    #     {{
+    #         "file_path": "{dest_path / 'src' / 'main' / 'java' / 'com' / 'example' / 'JsonProcessor.java'}",
+    #         "target_line": "24",
+    #         "target_name": "readValue"
+    #     }}
+    # ]
+    # """
     
     # Generate artifacts info with Spoon
     artifacts_data = None

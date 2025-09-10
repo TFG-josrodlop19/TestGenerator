@@ -128,9 +128,9 @@ def open_tix_file(owner:str, name:str) -> str:
                 
                 file_path = file.get("path_to_file")
                 if file_path and file_path.endswith('.java'):
-                    used_artifacts = file.get("used_artifacts", [])
+                    used_artifacts = file.get("used_artefacts", [])
                     for artifact in used_artifacts:
-                        artifact_name = artifact.get("artifact_name")
+                        artifact_name = artifact.get("artefact_name")
                         used_in_lines = artifact.get("used_in_lines", [])
                         for line in used_in_lines:
                             artifact_data = ArtifactInfoVex(
