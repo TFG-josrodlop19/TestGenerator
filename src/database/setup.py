@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
-from .models import Base
+from database.models import Base
 
 # Global variables for database
 engine = None
@@ -45,13 +45,13 @@ def setup_database():
     return Session, engine, Base
 
 def get_engine():
-    """Get the database engine (must be initialized)"""
+    """Get the database engine"""
     if engine is None:
         raise ValueError("Database is not initialized.")
     return engine
 
 def get_session():
-    """Get a new database session (must be initialized)"""
+    """Get a new database session"""
     if Session is None:
         raise ValueError("Database is not initialized.")
     return Session()  # Return a new session instance

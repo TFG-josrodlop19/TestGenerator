@@ -10,8 +10,10 @@ from utils.file_writer import resolve_path, generate_path_repo, write_test_info_
 from utils.git_utils import clone_repo
 from utils.classes import TestStatus, TestInfo, ConfidenceLevel
 from autofuzz.autofuzz import build_tests, execute_tests
+from database.models import Project, Scanner
 
 from database.setup import setup_database
+from database.operations import create_project
 
 load_dotenv()
 
@@ -59,18 +61,21 @@ def run(
     """
     Generates vex and automatically runs tests.`
     """
-
     dest_path = Path(generate_path_repo(owner, name))
     clone_repo(owner, name, dest_path)
     
     print(f"Cloned repository to: {dest_path}")
 
     resolved_pom_path = resolve_path(pom_path, dest_path)
-    
+
+        
     # Verificar que los archivos existen
     if not resolved_pom_path.exists():
         raise FileNotFoundError(f"Error: POM file not found at {resolved_pom_path}")
 
+    # TODO: quitar luego confidence de aqui
+    confidence = ConfidenceLevel.MEDIUM
+    project = create_project(owner, name, pom_path, confidence)
     
     artifacts_json = None
     if not reload:
