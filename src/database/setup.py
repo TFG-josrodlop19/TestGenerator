@@ -8,16 +8,18 @@ from .models import Base
 engine = None
 Session = None
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-DATABASE_NAME = os.getenv("DATABASE_NAME", "testgenerator.db")
-DB_PATH = PROJECT_ROOT / DATABASE_NAME
-DATABASE_URL = f"sqlite:///{DB_PATH}"
-
 def setup_database():
     """
     Configure and initialize the complete database
     Returns Session, engine and Base for later use
     """
+    DATABASE_DIRECTORY = Path(__file__).parent.parent.parent / "database"
+    DATABASE_NAME = os.getenv("DATABASE_NAME")
+    DB_PATH = DATABASE_DIRECTORY / DATABASE_NAME
+    DATABASE_URL = f"sqlite:///{DB_PATH}"
+
+    os.makedirs(DATABASE_DIRECTORY, exist_ok=True)
+
     global engine, Session
     
     # Create engine
@@ -38,8 +40,7 @@ def setup_database():
     
     # Create database
     Base.metadata.create_all(bind=engine)
-    
-    print(f"✅ Base de datos configurada en: {DB_PATH}")
+
     
     return Session, engine, Base
 

@@ -1,10 +1,12 @@
+from datetime import datetime
 from sqlalchemy import (
     create_engine, Column, Integer, String, Float, DateTime, Enum, ForeignKey, Table, UniqueConstraint
 )
 from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
 from utils.classes import TestStatus, ConfidenceLevel, VulnerabilityStatus
 
-Base = DeclarativeBase()
+class Base(DeclarativeBase):
+    pass
 
 # Association tables
 vulnerability_cwe = Table(
@@ -43,8 +45,8 @@ class Scanner(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
 
     #Attributes
-    date: Mapped[DateTime]
-    confidence: Mapped[ConfidenceLevel]
+    date: Mapped[datetime]
+    confidence: Mapped[ConfidenceLevel] = mapped_column(Enum(ConfidenceLevel))
 
     #FK
     project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))

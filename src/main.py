@@ -11,7 +11,11 @@ from utils.git_utils import clone_repo
 from utils.classes import TestStatus, TestInfo, ConfidenceLevel
 from autofuzz.autofuzz import build_tests, execute_tests
 
+from database.setup import setup_database
+
 load_dotenv()
+
+setup_database()
 
 PROJECT_ROOT = Path(__file__).parent.parent
 OSS_FUZZ_PROJECTS_ROOT = PROJECT_ROOT / "OSS-Fuzz" / "projects"
