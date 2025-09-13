@@ -5,7 +5,7 @@ from test_generator.generator import generate_fuzzer
 from dotenv import load_dotenv
 import typer
 from vexgen_caller.auth import signup, login
-from vexgen_caller.vex_generator import generate_vex, open_tix_file
+from vexgen_caller.vex_generator import generate_vex, get_tix_data
 from utils.file_writer import resolve_path, generate_path_repo, write_test_info_to_json
 from utils.git_utils import clone_repo
 from utils.classes import TestStatus, TestInfo, ConfidenceLevel
@@ -80,20 +80,21 @@ def run(
     vulnerabilities = None
     if not reload:
         try:
-            vulnerabilities = open_tix_file(owner, name)
+            vulnerabilities = get_tix_data(owner, name)
             print(f"Using existing TIX file")
         except FileNotFoundError:
             print(f"TIX file not found, generating a new one...")
             generate_vex(owner, name)
-            vulnerabilities = open_tix_file(owner, name)
+            vulnerabilities = get_tix_data(owner, name)
     else:
         generate_vex(owner, name)
-        vulnerabilities = open_tix_file(owner, name)
+        vulnerabilities = get_tix_data(owner, name)
 
     if not vulnerabilities or len(vulnerabilities) == 0:
         raise ValueError("No vulnerabilities found in the TIX file.")
 
-    create_vulnerabilities_artifacts(project.id, vulnerabilities)
+    # This function also returns the scanner_id to use after in test generation
+    scanner_id = create_vulnerabilities_artifacts(project.id, vulnerabilities)
 
     # artifacts_json = f"""
     # [
