@@ -76,7 +76,7 @@ class Vulnerability(Base):
     #FK
     cwes: Mapped[list["CWE"]] = relationship(secondary=vulnerability_cwe)
     scanner_id: Mapped[int] = mapped_column(ForeignKey("scanner.id"))
-    artifacts: Mapped[list["Artifact"]] = relationship(secondary=vulnerability_artifact, back_populates="vulnerabilities") 
+    artifacts: Mapped[set["Artifact"]] = relationship(secondary=vulnerability_artifact, back_populates="vulnerabilities") 
     
 
 class Artifact(Base):
@@ -92,7 +92,7 @@ class Artifact(Base):
     affected: Mapped[VulnerabilityStatus] = mapped_column(Enum(VulnerabilityStatus), nullable=False, default=VulnerabilityStatus.UNKNOWN)
 
     #FK
-    vulnerabilities: Mapped[list["Vulnerability"]] = relationship(secondary=vulnerability_artifact, back_populates="artifacts")
+    vulnerabilities: Mapped[set["Vulnerability"]] = relationship(secondary=vulnerability_artifact, back_populates="artifacts")
     fuzzers: Mapped[list["Fuzzer"]] = relationship(back_populates="artifact")
 
 class Fuzzer(Base):
