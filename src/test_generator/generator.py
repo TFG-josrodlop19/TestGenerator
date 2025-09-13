@@ -2,10 +2,14 @@ import os
 import subprocess
 from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
+from utils.file_writer import generate_path_repo
+from vexgen_caller.vex_generator import generate_artifact_key
+from database.models import Artifact, Fuzzer, TestStatus
+from database.operations import save_artifacts_fuzzer
 
 # El diccionario de tipos no cambia
 TYPE_TO_FUZZ_FUNCTION = {
-    # === TIPOS PRIMITIVOS ===
+    # primitives
     "byte": "dataProvider.consumeByte()",
     "short": "dataProvider.consumeShort()",
     "int": "dataProvider.consumeInt()",
@@ -15,7 +19,7 @@ TYPE_TO_FUZZ_FUNCTION = {
     "char": "dataProvider.consumeChar()",
     "boolean": "dataProvider.consumeBoolean()",
     
-    # === WRAPPER CLASSES ===
+    # wrappers and common classes
     "java.lang.Byte": "dataProvider.consumeByte()",
     "java.lang.Short": "dataProvider.consumeShort()",
     "java.lang.Integer": "dataProvider.consumeInt()",
@@ -25,7 +29,7 @@ TYPE_TO_FUZZ_FUNCTION = {
     "java.lang.Character": "dataProvider.consumeChar()",
     "java.lang.Boolean": "dataProvider.consumeBoolean()",
     
-    # === STRINGS Y ARRAYS ===
+    # strings and arrays
     "java.lang.String": "dataProvider.consumeString(1000)",
     "String": "dataProvider.consumeString(1000)",
     "char[]": "dataProvider.consumeString(100).toCharArray()",
@@ -38,14 +42,14 @@ TYPE_TO_FUZZ_FUNCTION = {
     "boolean[]": "dataProvider.consumeBooleans(100)",
     "java.lang.String[]": "new String[]{dataProvider.consumeString(100), dataProvider.consumeString(100)}",
     
-    # === NÚMEROS ESPECIALES ===
+    # special numbers
     "java.math.BigInteger": "new java.math.BigInteger(dataProvider.consumeString(50))",
     "java.math.BigDecimal": "new java.math.BigDecimal(dataProvider.consumeDouble())",
     "java.util.concurrent.atomic.AtomicInteger": "new java.util.concurrent.atomic.AtomicInteger(dataProvider.consumeInt())",
     "java.util.concurrent.atomic.AtomicLong": "new java.util.concurrent.atomic.AtomicLong(dataProvider.consumeLong())",
     "java.util.concurrent.atomic.AtomicBoolean": "new java.util.concurrent.atomic.AtomicBoolean(dataProvider.consumeBoolean())",
     
-    # === FECHAS Y TIEMPO ===
+    # date
     "java.util.Date": "new java.util.Date(dataProvider.consumeLong())",
     "java.time.LocalDate": "java.time.LocalDate.ofEpochDay(dataProvider.consumeInt(1, 365000))",
     "java.time.LocalTime": "java.time.LocalTime.ofSecondOfDay(dataProvider.consumeInt(0, 86400))",
@@ -59,29 +63,23 @@ TYPE_TO_FUZZ_FUNCTION = {
     "java.sql.Timestamp": "new java.sql.Timestamp(dataProvider.consumeLong())",
     "java.util.Calendar": "java.util.Calendar.getInstance()",
     
-    # === COLECCIONES - Lists ===
+    # collections
     "java.util.List": "java.util.Arrays.asList(dataProvider.consumeString(100), dataProvider.consumeString(100))",
     "java.util.ArrayList": "new java.util.ArrayList<>(java.util.Arrays.asList(dataProvider.consumeString(100)))",
     "java.util.LinkedList": "new java.util.LinkedList<>(java.util.Arrays.asList(dataProvider.consumeString(100)))",
     "java.util.Vector": "new java.util.Vector<>(java.util.Arrays.asList(dataProvider.consumeString(100)))",
     "java.util.Stack": "new java.util.Stack<>()",
-    
-    # === COLECCIONES - Sets ===
     "java.util.Set": "new java.util.HashSet<>(java.util.Arrays.asList(dataProvider.consumeString(100)))",
     "java.util.HashSet": "new java.util.HashSet<>(java.util.Arrays.asList(dataProvider.consumeString(100)))",
     "java.util.LinkedHashSet": "new java.util.LinkedHashSet<>(java.util.Arrays.asList(dataProvider.consumeString(100)))",
     "java.util.TreeSet": "new java.util.TreeSet<>(java.util.Arrays.asList(dataProvider.consumeString(100)))",
     "java.util.EnumSet": "java.util.EnumSet.noneOf(java.time.DayOfWeek.class)",
-    
-    # === COLECCIONES - Maps ===
     "java.util.Map": "java.util.Collections.singletonMap(dataProvider.consumeString(50), dataProvider.consumeString(50))",
     "java.util.HashMap": "new java.util.HashMap<String, String>() {{ put(dataProvider.consumeString(50), dataProvider.consumeString(50)); }}",
     "java.util.LinkedHashMap": "new java.util.LinkedHashMap<String, String>() {{ put(dataProvider.consumeString(50), dataProvider.consumeString(50)); }}",
     "java.util.TreeMap": "new java.util.TreeMap<String, String>() {{ put(dataProvider.consumeString(50), dataProvider.consumeString(50)); }}",
     "java.util.Hashtable": "new java.util.Hashtable<String, String>() {{ put(dataProvider.consumeString(50), dataProvider.consumeString(50)); }}",
     "java.util.Properties": "new java.util.Properties() {{ setProperty(dataProvider.consumeString(50), dataProvider.consumeString(50)); }}",
-    
-    # === COLECCIONES - Queues ===
     "java.util.Queue": "new java.util.LinkedList<>(java.util.Arrays.asList(dataProvider.consumeString(100)))",
     "java.util.Deque": "new java.util.ArrayDeque<>(java.util.Arrays.asList(dataProvider.consumeString(100)))",
     "java.util.ArrayDeque": "new java.util.ArrayDeque<>(java.util.Arrays.asList(dataProvider.consumeString(100)))",
@@ -89,7 +87,7 @@ TYPE_TO_FUZZ_FUNCTION = {
     "java.util.concurrent.BlockingQueue": "new java.util.concurrent.ArrayBlockingQueue<>(10)",
     "java.util.concurrent.LinkedBlockingQueue": "new java.util.concurrent.LinkedBlockingQueue<>()",
     
-    # === STREAMS Y I/O ===
+    # streams
     "java.io.InputStream": "new java.io.ByteArrayInputStream(dataProvider.consumeBytes(1024))",
     "java.io.OutputStream": "new java.io.ByteArrayOutputStream()",
     "java.io.Reader": "new java.io.StringReader(dataProvider.consumeString(1000))",
@@ -99,7 +97,7 @@ TYPE_TO_FUZZ_FUNCTION = {
     "java.net.URL": "new java.net.URL(\"http://example.com/\" + dataProvider.consumeString(50))",
     "java.net.URI": "java.net.URI.create(\"http://example.com/\" + dataProvider.consumeString(50))",
     
-    # === BUFFERS NIO ===
+    # buffers
     "java.nio.ByteBuffer": "java.nio.ByteBuffer.wrap(dataProvider.consumeBytes(1024))",
     "java.nio.CharBuffer": "java.nio.CharBuffer.wrap(dataProvider.consumeString(100))",
     "java.nio.IntBuffer": "java.nio.IntBuffer.wrap(dataProvider.consumeInts(100))",
@@ -107,7 +105,7 @@ TYPE_TO_FUZZ_FUNCTION = {
     "java.nio.FloatBuffer": "java.nio.FloatBuffer.wrap(dataProvider.consumeFloats(100))",
     "java.nio.DoubleBuffer": "java.nio.DoubleBuffer.wrap(dataProvider.consumeDoubles(100))",
     
-    # === UTILIDADES ===
+    # utils
     "java.util.UUID": "java.util.UUID.fromString(String.format(\"%08x-%04x-%04x-%04x-%012x\", dataProvider.consumeInt(), dataProvider.consumeShort(), dataProvider.consumeShort(), dataProvider.consumeShort(), dataProvider.consumeLong()))",
     "java.util.Locale": "new java.util.Locale(dataProvider.consumeString(2))",
     "java.util.TimeZone": "java.util.TimeZone.getTimeZone(\"GMT\" + dataProvider.consumeInt(-12, 12))",
@@ -115,52 +113,36 @@ TYPE_TO_FUZZ_FUNCTION = {
     "java.util.Random": "new java.util.Random(dataProvider.consumeLong())",
     "java.security.SecureRandom": "new java.security.SecureRandom()",
     
-    # === REGEX Y PATTERNS ===
+    # regex
     "java.util.regex.Pattern": "java.util.regex.Pattern.compile(dataProvider.consumeString(50))",
     "java.util.regex.Matcher": "java.util.regex.Pattern.compile(\".*\").matcher(dataProvider.consumeString(100))",
     
-    # === OPTIONAL ===
+    # optionals
     "java.util.Optional": "java.util.Optional.ofNullable(dataProvider.consumeString(100))",
     "java.util.OptionalInt": "java.util.OptionalInt.of(dataProvider.consumeInt())",
     "java.util.OptionalLong": "java.util.OptionalLong.of(dataProvider.consumeLong())",
     "java.util.OptionalDouble": "java.util.OptionalDouble.of(dataProvider.consumeDouble())",
-    
-    # === CONCURRENT ===
-    "java.util.concurrent.CompletableFuture": "java.util.concurrent.CompletableFuture.completedFuture(dataProvider.consumeString(100))",
-    "java.util.concurrent.Semaphore": "new java.util.concurrent.Semaphore(dataProvider.consumeInt(1, 100))",
-    "java.util.concurrent.CountDownLatch": "new java.util.concurrent.CountDownLatch(dataProvider.consumeInt(1, 10))",
-    
-    # === REFLECTION ===
+
+    # reflection
     "java.lang.Class": "String.class",
     "java.lang.reflect.Method": "String.class.getMethods()[0]",
     "java.lang.reflect.Field": "String.class.getFields().length > 0 ? String.class.getFields()[0] : null",
     "java.lang.reflect.Constructor": "String.class.getConstructors()[0]",
     
-    # === EXCEPTIONS (para testing) ===
+    # exceptions
     "java.lang.Exception": "new java.lang.Exception(dataProvider.consumeString(100))",
     "java.lang.RuntimeException": "new java.lang.RuntimeException(dataProvider.consumeString(100))",
     "java.lang.IllegalArgumentException": "new java.lang.IllegalArgumentException(dataProvider.consumeString(100))",
     "java.lang.IllegalStateException": "new java.lang.IllegalStateException(dataProvider.consumeString(100))",
     "java.lang.NullPointerException": "new java.lang.NullPointerException(dataProvider.consumeString(100))",
     
-    # === GENERICS COMUNES ===
+    # generic
     "java.lang.Object": "dataProvider.consumeString(100)",
     "java.io.Serializable": "dataProvider.consumeString(100)",
     "java.lang.Comparable": "dataProvider.consumeString(100)",
     "java.lang.CharSequence": "dataProvider.consumeString(100)",
     
-    # === JSON/XML LIBRARIES ===
-    "org.json.JSONObject": "new org.json.JSONObject(dataProvider.consumeString(500))",
-    "org.json.JSONArray": "new org.json.JSONArray(dataProvider.consumeString(500))",
-    "com.fasterxml.jackson.databind.JsonNode": "com.fasterxml.jackson.databind.node.TextNode.valueOf(dataProvider.consumeString(100))",
-    "com.fasterxml.jackson.databind.ObjectMapper": "new com.fasterxml.jackson.databind.ObjectMapper()",
-    
-    # === SPRING FRAMEWORK (si se usa) ===
-    "org.springframework.http.HttpHeaders": "new org.springframework.http.HttpHeaders()",
-    "org.springframework.http.HttpStatus": "org.springframework.http.HttpStatus.OK",
-    "org.springframework.util.MultiValueMap": "new org.springframework.util.LinkedMultiValueMap<>()",
-    
-    # === ENUMS COMUNES ===
+    # common enums
     "java.time.DayOfWeek": "java.time.DayOfWeek.values()[dataProvider.consumeInt(0, 6)]",
     "java.time.Month": "java.time.Month.values()[dataProvider.consumeInt(0, 11)]",
     "java.nio.file.StandardOpenOption": "java.nio.file.StandardOpenOption.CREATE",
@@ -206,7 +188,7 @@ def format_java_file(file_path: str):
         google_format_jar = root_path / "libraries" / "google-java-format-1.28.0-all-deps.jar"
 
         if not google_format_jar.exists():
-            print("Google Java Format JAR no encontrado, saltando formateo")
+            print("Google Java Format JAR not found")
             return
         
         # Ejecutar el formatter
@@ -215,15 +197,68 @@ def format_java_file(file_path: str):
             "--replace", str(file_path)
         ], timeout=30)
         
-        if result.returncode == 0:
-            print("Código formateado correctamente")
-        else:
-            print(f"Error al formatear: {result.stderr}")
-            
+        if result.returncode != 0:
+            print(f"Error formatting: {result.stderr}")
+
     except subprocess.TimeoutExpired:
-        print("Timeout al formatear código")
+        print("Timeout formatting code")
     except Exception as e:
-        print(f"Error inesperado al formatear: {e}")
+        print(f"Unexpected error formatting: {e}")
+
+def generate_fuzzers(owner: str, repo_name: str, artifacts_data: dict):
+    # Generate tests output directory if not exists
+    dest_path = Path(generate_path_repo(owner, repo_name))
+    test_dir = dest_path / "src" / "test" / "java"
+    test_dir.mkdir(parents=True, exist_ok=True)
+    
+    tests_already_generated = {}
+    for artifact_dict in artifacts_data:
+        if artifact_dict != {}:
+            all_call_paths = artifact_dict.get("allCallPaths", [])
+            artifact_data = artifact_dict.get("artifactData")
+            artifact = Artifact(
+                filePath=artifact_data.get("filePath"),
+                name=artifact_data.get("artifactName"),
+                line=artifact_data.get("lineNumber")
+            )            
+            
+            if all_call_paths and len(all_call_paths) > 0:
+                for call_path in all_call_paths:
+                    
+                    for i in range(len(call_path) - 1, -1, -1):
+                        # Entry data for the current fuzzer generation
+                        entry_data = call_path[i]
+                        call_path_artifact_key = generate_artifact_key(entry_data.get("filePath"), entry_data.get("artifactName"), entry_data.get("lineNumber"))
+
+                        if call_path_artifact_key not in tests_already_generated:
+                            fuzzer = None
+                            try:
+                                
+                                test_path = generate_fuzzer(
+                                    data=entry_data,
+                                    exit_directory=str(test_dir)
+                                )
+                                fuzzer = Fuzzer(
+                                    testPath=str(test_path),
+                                    name=test_path.stem,
+                                    status=TestStatus.CREATED
+                                )
+
+                            except Exception as e:
+                                print(f"Error generating fuzzer: {e}")
+                                fuzzer = Fuzzer(
+                                    testPath="",
+                                    name="",
+                                    status=TestStatus.ERROR_GENERATING
+                                )
+                            tests_already_generated[call_path_artifact_key] = fuzzer
+                            artifact.fuzzers.add(fuzzer)
+                        else:
+                            artifact.fuzzers.add(tests_already_generated[call_path_artifact_key])
+                save_artifacts_fuzzer(owner, repo_name, artifact)
+            else:
+                print(f"No valid call paths found for artifact.")
+
 
 def generate_fuzzer(data: dict, exit_directory: str = "."):
     """
@@ -265,7 +300,6 @@ def generate_fuzzer(data: dict, exit_directory: str = "."):
         plantilla = env.get_template('fuzzer.java.j2')
     except Exception as e:
         print(f"Error loading template 'fuzzer.java.j2' from {templates_dir}")
-        print(f"Available templates: {list(templates_dir.glob('*.j2'))}")
         raise e
     
     # Generar el código
@@ -290,6 +324,6 @@ def generate_fuzzer(data: dict, exit_directory: str = "."):
     
     # Formatear el código Java usando Google Java Format
     format_java_file(ruta_salida)
-        
-    print(f"Fuzzer generado en: {ruta_salida}")
+
     return ruta_salida
+

@@ -141,7 +141,7 @@ def get_tix_data(owner:str, name:str) -> (tuple[list[Vulnerability], str]):
                                 )
                                 
                                 # It is needed to ensure that the same artifact instance is used when storing in the database, to avoid duplicates
-                                artifact_key = generate_artifact_key(artifact_data)
+                                artifact_key = generate_artifact_key(artifact_data.filePath, artifact_data.name, artifact_data.line)
                                 if artifact_key not in artifacts_dict:
                                     artifacts_dict[artifact_key] = artifact_data
                                     vulnerability.artifacts.add(artifact_data)
@@ -200,8 +200,8 @@ def artifacts_json(artifacts: dict) -> str:
     
     
     
-def generate_artifact_key(artifact: Artifact) -> str:
+def generate_artifact_key(file_path: str, name: str, line:int) -> str:
     """
     Generates a unique key for an artifact based on its file path, target line, and target name.
     """
-    return f"{artifact.filePath}-{artifact.name}-{artifact.line}"
+    return f"{file_path}-{name}-{line}"

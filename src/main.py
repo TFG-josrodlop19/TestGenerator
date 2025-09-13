@@ -1,16 +1,15 @@
 import os
 from pathlib import Path
 from java_analyzer.spoon_reader import get_artifact_info
-from test_generator.generator import generate_fuzzer
+from test_generator.generator import generate_fuzzer, generate_fuzzers
 from dotenv import load_dotenv
 import typer
 from vexgen_caller.auth import signup, login
 from vexgen_caller.vex_generator import generate_vex, get_tix_data
 from utils.file_writer import resolve_path, generate_path_repo, write_test_info_to_json
 from utils.git_utils import clone_repo
-from utils.classes import TestStatus, TestInfo, ConfidenceLevel
 from autofuzz.autofuzz import build_tests, execute_tests
-from database.models import Project, Scanner
+from database.models import Project, Scanner, TestStatus, ConfidenceLevel
 
 from database.setup import setup_database
 from database.operations import create_project, create_vulnerabilities_artifacts
@@ -94,7 +93,7 @@ def run(
         raise ValueError("No vulnerabilities found in the TIX file.")
 
     # This function also returns the scanner_id to use after in test generation
-    scanner_id = create_vulnerabilities_artifacts(project.id, vulnerabilities)
+    create_vulnerabilities_artifacts(project.id, vulnerabilities)
 
     # artifacts_json = f"""
     # [
@@ -117,54 +116,11 @@ def run(
         return
     
     if artifacts_data:
-        # Definir directorio de salida dentro del proyecto clonado
-        test_dir = dest_path / "src" / "test" / "java"
-        test_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Dict to store test results
-        test_results = {}
-        test_already_generated = set()
-        for artifact in artifacts_data:
-            if artifact != {}:
-                all_call_paths = artifact.get("allCallPaths", [])
-                artifact_data = artifact.get("artifactData")
-                artifact_key = f"{artifact_data.get('className')}_{artifact_data.get('artifactName')}_{artifact_data.get('lineNumber')}"
-                
-                # One entry per artifact
-                test_results[artifact_key] = {"vulnerable": "Not tested", "tests": []}
-                
-                if all_call_paths and len(all_call_paths) > 0:
-                    for call_path in all_call_paths:
-                        
-                        # For ech call path, store the generated tests
-                        call_path_tests = []
-                        for i in range(len(call_path) - 1, -1, -1):
-                            print(f"Call path {i}: {call_path[i]}")
-                            entry_data = call_path[i]
-                            try:
-                                test = generate_fuzzer(
-                                    data=entry_data,
-                                    exit_directory=str(test_dir)
-                                )
-                                test_info = TestInfo(str(test), TestStatus.CREATED).to_dict()
-                                
-                            except Exception as e:
-                                print(f"Error generating fuzzer: {e}")
-                                test_info = TestInfo("", TestStatus.ERROR_GENERATING)
-                            
-                            # Only add if not already generated
-                            if test_info["test_path"] not in test_already_generated:
-                                test_already_generated.add(test_info["test_path"])
-                                call_path_tests.append(test_info)
-                        test_results[artifact_key]["tests"].append(call_path_tests)
-                else:
-                    print(f"No valid call paths found for artifact.")
-        write_test_info_to_json(owner, name, test_results)
-        
-                
+        generate_fuzzers(owner, name, artifacts_data)
+               
         # Exectute fuzz tests
-        build_tests(owner, name)
-        execute_tests(owner, name) 
+        # build_tests(owner, name)
+        # execute_tests(owner, name) 
      
      
      

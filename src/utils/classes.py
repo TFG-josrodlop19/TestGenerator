@@ -1,20 +1,5 @@
 from enum import Enum
-
-class ConfidenceLevel(Enum):
-    LOW = "low"
-    MEDIUM = "medium"
-    HIGH = "high"
-    ABSOLUTE = "absolute"
-    
-    def get_timeout_minutes(self):
-        """Returns the timeout in minutes for each confidence level"""
-        timeouts = {
-            ConfidenceLevel.LOW: 2,
-            ConfidenceLevel.MEDIUM: 10,
-            ConfidenceLevel.HIGH: 60,
-            ConfidenceLevel.ABSOLUTE: None  # No limit
-        }
-        return timeouts[self]
+from database.models import TestStatus
 
 class FunctionInfo:
     
@@ -40,19 +25,6 @@ class ArtifactInfoVex:
     def __str__(self):
         return f"ArtifactInfoVex(file_path='{self.file_path}', target_line={self.target_line}, target_name='{self.target_name}')"
 
-
-class VulnerabilityStatus(Enum):
-    AFFECTED = "affected"
-    NOT_AFFECTED = "not_affected"
-    UNKNOWN = "unknown"
-    
-class TestStatus(Enum):
-    CREATED = "created"
-    ERROR_BUILDING = "error_building"
-    ERROR_EXECUTING = "error_executing"
-    ERROR_GENERATING = "error_generating"
-    VULNERABLE = "vulnerable"
-    NOT_VULNERABLE = "not_vulnerable"
 
 class TestInfo:
     def __init__(self, test_path:str, test_status:TestStatus):

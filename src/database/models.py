@@ -3,10 +3,39 @@ from sqlalchemy import (
     create_engine, Column, Integer, String, Float, DateTime, Enum, ForeignKey, Table, UniqueConstraint
 )
 from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
-from utils.classes import TestStatus, ConfidenceLevel, VulnerabilityStatus
-
+import enum
 class Base(DeclarativeBase):
     pass
+
+# Enums
+class ConfidenceLevel(enum.Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    ABSOLUTE = "absolute"
+    
+    def get_timeout_minutes(self):
+        """Returns the timeout in minutes for each confidence level"""
+        timeouts = {
+            ConfidenceLevel.LOW: 2,
+            ConfidenceLevel.MEDIUM: 10,
+            ConfidenceLevel.HIGH: 60,
+            ConfidenceLevel.ABSOLUTE: None  # No limit
+        }
+        return timeouts[self]
+    
+class VulnerabilityStatus(enum.Enum):
+    AFFECTED = "affected"
+    NOT_AFFECTED = "not_affected"
+    UNKNOWN = "unknown"
+    
+class TestStatus(enum.Enum):
+    CREATED = "created"
+    ERROR_BUILDING = "error_building"
+    ERROR_EXECUTING = "error_executing"
+    ERROR_GENERATING = "error_generating"
+    VULNERABLE = "vulnerable"
+    NOT_VULNERABLE = "not_vulnerable"
 
 # Association tables
 vulnerability_cwe = Table(
@@ -21,6 +50,13 @@ vulnerability_artifact = Table(
     Base.metadata,
     Column("vulnerability_id", ForeignKey("vulnerability.id"), primary_key=True),
     Column("artifact_id", ForeignKey("artifact.id"), primary_key=True),
+)
+
+artifact_fuzzer = Table(
+    "artifact_fuzzer",
+    Base.metadata,
+    Column("artifact_id", ForeignKey("artifact.id"), primary_key=True),
+    Column("fuzzer_id", ForeignKey("fuzzer.id"), primary_key=True),
 )
 
 # ---------------- ENTIDADES ---------------- #
@@ -46,7 +82,7 @@ class Scanner(Base):
 
     #Attributes
     date: Mapped[datetime]
-    confidence: Mapped[ConfidenceLevel] = mapped_column(Enum(ConfidenceLevel))
+    confidence: Mapped[ConfidenceLevel] = mapped_column(Enum(ConfidenceLevel), nullable=False)
 
     #FK
     project_id: Mapped[int] = mapped_column(ForeignKey("project.id"))
@@ -93,7 +129,7 @@ class Artifact(Base):
 
     #FK
     vulnerabilities: Mapped[set["Vulnerability"]] = relationship(secondary=vulnerability_artifact, back_populates="artifacts")
-    fuzzers: Mapped[list["Fuzzer"]] = relationship(back_populates="artifact")
+    fuzzers: Mapped[set["Fuzzer"]] = relationship(secondary=artifact_fuzzer, back_populates="artifacts")
 
 class Fuzzer(Base):
     __tablename__ = "fuzzer"
@@ -108,4 +144,4 @@ class Fuzzer(Base):
 
     # FK
     artifact_id : Mapped[int] = mapped_column(ForeignKey("artifact.id"))
-    artifact: Mapped["Artifact"] = relationship(back_populates="fuzzers")
+    artifacts: Mapped[set["Artifact"]] = relationship(secondary=artifact_fuzzer, back_populates="fuzzers")
