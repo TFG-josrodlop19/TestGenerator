@@ -16,15 +16,6 @@ public class App {
         String pomPath = args[0];
         String artifactsJson = args[1];
 
-        // String pomPath = "/home/josue/universidad/TFG/code/TestGenerator/OSS-Fuzz/projects/tfg-josrodlop19_vulnerableproject1/pom.xml";
-        // String artifactsJson = 
-        //         "[\n" +
-        //         "  {\n" +
-        //         "    \"file_path\": \"/home/josue/universidad/TFG/code/TestGenerator/OSS-Fuzz/projects/tfg-josrodlop19_vulnerableproject1/src/main/java/com/example/JsonProcessor.java\",\n" +
-        //         "    \"target_line\": 24,\n" +
-        //         "    \"target_name\": \"readValue\"\n" +
-        //         "  }\n" +
-        //         "]";
         try {
             // Parse JSON array
             JSONArray artifacts = new JSONArray(artifactsJson);

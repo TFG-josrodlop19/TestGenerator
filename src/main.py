@@ -6,13 +6,13 @@ from dotenv import load_dotenv
 import typer
 from vexgen_caller.auth import signup, login
 from vexgen_caller.vex_generator import generate_vex, get_tix_data
-from utils.file_writer import resolve_path, generate_path_repo, write_test_info_to_json
+from utils.file_writer import resolve_path, generate_path_repo
 from utils.git_utils import clone_repo
 from autofuzz.autofuzz import build_tests, execute_tests
 from database.models import ConfidenceLevel
 
 from database.setup import setup_database
-from database.operations import create_project, create_vulnerabilities_artifacts
+from database.operations import create_project, create_vulnerabilities_artifacts, update_states_after_execution
 
 load_dotenv()
 
@@ -92,7 +92,6 @@ def run(
     if not vulnerabilities or len(vulnerabilities) == 0:
         raise ValueError("No vulnerabilities found in the TIX file.")
 
-    # This function also returns the scanner_id to use after in test generation
     create_vulnerabilities_artifacts(project.id, vulnerabilities)
     
     # Generate artifacts info with Spoon
@@ -111,6 +110,7 @@ def run(
         # Exectute fuzz tests
         build_tests(owner, name)
         execute_tests(owner, name, confidence)
+        update_states_after_execution(owner, name)
      
      
      
