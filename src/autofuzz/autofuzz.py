@@ -111,21 +111,37 @@ def execute_tests(owner: str, name: str, confidence: ConfidenceLevel):
             fuzzer_name = fuzzer.name
             print(f"Executing fuzzer: {fuzzer_name}")
             try:
-                # Ejecutar fuzzer individual usando OSS-Fuzz
-                result = subprocess.run([
-                    sys.executable,
-                    "infra/helper.py", 
-                    "run_fuzzer", 
-                    project,
-                    fuzzer_name,
-                    "--",
-                    f"-max_total_time={confidence}",    # 10 minutos máximo
-                    "-print_final_stats=1"    # Mostrar estadísticas al final
-                ], 
-                cwd=oss_fuzz_root,
-                capture_output=True, 
-                text=True
-                )
+                # Exec each fuzzer individually
+                if fuzzer.usesParameters:
+                    result = subprocess.run([
+                        sys.executable,
+                        "infra/helper.py", 
+                        "run_fuzzer", 
+                        project,
+                        fuzzer_name,
+                        "--",
+                        f"-max_total_time={confidence}",
+                        "-print_final_stats=1"
+                    ], 
+                    cwd=oss_fuzz_root,
+                    capture_output=True, 
+                    text=True
+                    )
+                else:
+                    result = subprocess.run([
+                        sys.executable,
+                        "infra/helper.py", 
+                        "run_fuzzer", 
+                        project,
+                        fuzzer_name,
+                        "--",
+                        "-runs=1",
+                        "-print_final_stats=1"
+                    ], 
+                    cwd=oss_fuzz_root,
+                    capture_output=True, 
+                    text=True
+                    )
                 
                 # Analizar resultado
                 output = result.stdout + result.stderr
