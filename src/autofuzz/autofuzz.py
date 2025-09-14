@@ -71,7 +71,7 @@ def check_compilation_failures(owner: str, name: str, fuzzers: list[Fuzzer]):
     oss_fuzz_root = Path(repo_path).parent.parent
     build_out_dir = oss_fuzz_root / "build" / "out" / project    
     for fuzzer in fuzzers:
-        if not fuzzer and not fuzzer.testPath == "":
+        if fuzzer and not fuzzer.testPath == "" and not fuzzer.name == "":
             compiled_fuzzer_name = fuzzer.name + ".class"
             files = list(build_out_dir.rglob(compiled_fuzzer_name))
             if not files:
