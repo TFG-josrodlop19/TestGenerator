@@ -143,5 +143,4 @@ class Fuzzer(Base):
     status: Mapped[TestStatus] = mapped_column(Enum(TestStatus))
 
     # FK
-    artifact_id : Mapped[int] = mapped_column(ForeignKey("artifact.id"))
     artifacts: Mapped[set["Artifact"]] = relationship(secondary=artifact_fuzzer, back_populates="fuzzers")

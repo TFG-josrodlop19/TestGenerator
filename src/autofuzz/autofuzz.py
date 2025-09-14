@@ -4,14 +4,16 @@ import sys
 from pathlib import Path
 from utils.file_writer import generate_path_repo, read_test_info_from_json, update_test_status
 from utils.classes import TestStatus
+from database.operations import get_created_fuzzers_by_project, update_fuzzer_status
+from database.models import Fuzzer
 
 def build_tests(owner: str, name: str):
     """
-    Ejecuta el build de fuzzers usando OSS-Fuzz helper.py
+    Executes the OSS-Fuzz build_fuzzers command to compile the generated fuzz tests.
     """
+    fuzzers = get_created_fuzzers_by_project(owner, name)
     
-    info = read_test_info_from_json(owner, name)
-    if info is None or info == {}:
+    if fuzzers is None or fuzzers == []:
         raise ValueError(f"No test info generated for {owner}/{name}")
     repo_path = generate_path_repo(owner, name)
     if not os.path.exists(repo_path):
@@ -20,24 +22,24 @@ def build_tests(owner: str, name: str):
     project = Path(repo_path).name
     
     
-    # Cambiar al directorio de OSS-Fuzz (2 niveles arriba del proyecto)
+    # Change to the OSS-Fuzz root directory
     oss_fuzz_root = Path(repo_path).parent.parent
     if not oss_fuzz_root.exists():
         raise FileNotFoundError(f"OSS-Fuzz root does not exist: {oss_fuzz_root}")
     
     try:
-        # Ejecutar el comando build_fuzzers usando Python del venv
+        # Execute the build_fuzzers command using the venv Python
         print(f"Building fuzzers for project: {project}")
         
         print(f"Command: {sys.executable} infra/helper.py build_fuzzers {project}")
         
         result = subprocess.run([
-            sys.executable,  # Usar Python del entorno virtual activo
+            sys.executable,  # Use the current Python interpreter
             "infra/helper.py", 
             "build_fuzzers", 
             project
-        ], 
-        cwd=oss_fuzz_root,  # Cambiar directorio de trabajo
+        ],
+        cwd=oss_fuzz_root,  # Change working directory
         capture_output=True, 
         text=True, 
         check=True
@@ -48,7 +50,7 @@ def build_tests(owner: str, name: str):
         if result.stderr:
             print("STDERR:", result.stderr)
         
-        check_compilation_failures(owner, name)
+        check_compilation_failures(owner, name, fuzzers)
             
         return True
         
@@ -61,33 +63,19 @@ def build_tests(owner: str, name: str):
         print(f"Unexpected error during build: {e}")
         return False
 
-def check_compilation_failures(owner: str, name: str):
+def check_compilation_failures(owner: str, name: str, fuzzers: list[Fuzzer]):
     repo_path = generate_path_repo(owner, name)
     project = Path(repo_path).name
     
-    # Directorio donde OSS-Fuzz guarda los binarios compilados
+    # OSS-Fuzz build output directory
     oss_fuzz_root = Path(repo_path).parent.parent
-    build_out_dir = oss_fuzz_root / "build" / "out" / project
-    
-    # Obtener información de tests generados
-    try:
-        info = read_test_info_from_json(owner, name)
-    except FileNotFoundError:
-        print(f"No test info found for {owner}/{name}")
-        return {}
-    
-    for artifact in info:
-        if artifact:
-            tests = info[artifact].get("tests", [])
-            for test_group in tests:
-                if test_group and test_group != []:
-                    for test in test_group:
-                        if test and test.get("test_path"):
-                            test_path = test.get("test_path")
-                            compiled_fuzzer_name = Path(test_path).stem + ".class"
-                            files = list(build_out_dir.rglob(compiled_fuzzer_name))
-                            if not files:
-                                update_test_status(owner, name, artifact, test_path, TestStatus.ERROR_BUILDING.value)
+    build_out_dir = oss_fuzz_root / "build" / "out" / project    
+    for fuzzer in fuzzers:
+        if not fuzzer and not fuzzer.testPath == "":
+            compiled_fuzzer_name = fuzzer.name + ".class"
+            files = list(build_out_dir.rglob(compiled_fuzzer_name))
+            if not files:
+                update_fuzzer_status(fuzzer.id, TestStatus.ERROR_BUILDING)
 
 
 def execute_tests(owner, name):
