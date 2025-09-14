@@ -94,16 +94,6 @@ def run(
 
     # This function also returns the scanner_id to use after in test generation
     create_vulnerabilities_artifacts(project.id, vulnerabilities)
-
-    # artifacts_json = f"""
-    # [
-    #     {{
-    #         "file_path": "{dest_path / 'src' / 'main' / 'java' / 'com' / 'example' / 'JsonProcessor.java'}",
-    #         "target_line": "24",
-    #         "target_name": "readValue"
-    #     }}
-    # ]
-    # """
     
     # Generate artifacts info with Spoon
     artifacts_data = None
@@ -120,12 +110,7 @@ def run(
                
         # Exectute fuzz tests
         build_tests(owner, name)
-        # execute_tests(owner, name) 
-     
-     
-     
-     
-     
+        execute_tests(owner, name, confidence)
      
      
      
