@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 from utils.file_writer import generate_path_repo
 from utils.classes import TestStatus
-from database.operations import get_created_fuzzers_by_project, update_fuzzer_status, get_scanner_all_data_by_project
+from database.operations import get_created_fuzzers_by_project, update_fuzzer_status, get_scanner_all_data_by_project, get_scanner_data_by_project
 from database.models import Fuzzer, ConfidenceLevel, VulnerabilityStatus
 import re
 from rich.console import Console
@@ -192,9 +192,18 @@ def extract_vulnerability_info(output: str) -> dict:
 
 
 def print_tests_results(owner: str, name: str, get_all: bool = False):
-    #TODO: aplicar el get_all
-    scanner = get_scanner_all_data_by_project(owner, name)
+    repo_path = generate_path_repo(owner, name)
 
+    if get_all:
+        scanner = get_scanner_all_data_by_project(owner, name)
+    else:
+        scanner = get_scanner_data_by_project(owner, name)
+    
+    # Initialize variables to store items
+    artifacts = set()
+    fuzzers = set()
+    
+    
     console = Console()
     
     # Header
@@ -212,15 +221,12 @@ def print_tests_results(owner: str, name: str, get_all: bool = False):
     vulnerabilities.add_column("CWEs")
     vulnerabilities.add_column("Status")
     vulnerabilities.add_column("Affected artifacts")
-
-    # Contadores para estadísticas
-    total = 0
-    vulnerable = 0
-    passed = 0
-    errors = 0
     
     for vulnerability in scanner.vulnerabilities:
-        
+        # Accumulate artifacts in set for later use
+        for artifact in vulnerability.artifacts:
+            artifacts.add(artifact)
+
         # Get CWEs as a string
         cwe_list = [str(cwe.cwe_id) for cwe in vulnerability.cwes]
         cwe_str = "\n".join(cwe_list) if cwe_list else "N/A"
@@ -231,80 +237,68 @@ def print_tests_results(owner: str, name: str, get_all: bool = False):
             get_pretty_vulnerability_status(vulnerability.status),
             get_pretty_artifacts_names(vulnerability.artifacts)
         )
+
+    # Table with artifacts and their status
+    artifacts_table = Table(
+        title="Artifacts Status",
+        show_header=True,
+        header_style="bold magenta",
+        show_lines=True
+    )
+    artifacts_table.add_column("Artifact")
+    artifacts_table.add_column("Line")
+    artifacts_table.add_column("File Path")
+    artifacts_table.add_column("Status")
+    artifacts_table.add_column("Fuzzers")
+
+    for artifact in artifacts:
+        # Accumulate fuzzers in set for later use
+        for fuzzer in artifact.fuzzers:
+            fuzzers.add(fuzzer)
+        
+        # Remove repo part from path
+        full_path = Path(artifact.filePath)
+        relative_path = full_path.relative_to(repo_path)
+        artifact_path = relative_path
+        artifacts_table.add_row(
+            artifact.name,
+            str(artifact.line),
+            str(artifact_path),
+            get_pretty_vulnerability_status(artifact.affected),
+            get_pretty_fuzzers_names(artifact.fuzzers)
+        )
+        
+    # Table with fuzzers and informacion
+    fuzzers_table = Table(
+        title="Fuzzers Info",
+        show_header=True,
+        header_style="bold magenta",
+        show_lines=True
+    )
     
-    # for vulnerability in scanner.vulnerabilities:
-    #     for artifact in vulnerability.artifacts:
-    #         for fuzzer in artifact.fuzzers:
-    #             total += 1
-                
-    #             # 🎨 ICONOS Y COLORES SEGÚN STATUS
-    #             if fuzzer.status == TestStatus.VULNERABLE:
-    #                 status_icon = "❌ VULNERABLE"
-    #                 status_style = "bold red"
-    #                 vulnerable += 1
-    #                 vuln_info = fuzzer.crash_type or "Unknown"
-    #             elif fuzzer.status == TestStatus.NOT_VULNERABLE:
-    #                 status_icon = "✅ PASSED"
-    #                 status_style = "bold green"
-    #                 passed += 1
-    #                 vuln_info = "None"
-    #             elif fuzzer.status == TestStatus.ERROR_BUILDING:
-    #                 status_icon = "🔨 BUILD ERROR"
-    #                 status_style = "bold yellow"
-    #                 errors += 1
-    #                 vuln_info = "Compilation failed"
-    #             elif fuzzer.status == TestStatus.ERROR_EXECUTING:
-    #                 status_icon = "⚠️ EXEC ERROR"
-    #                 status_style = "bold orange3"
-    #                 errors += 1
-    #                 vuln_info = "Runtime error"
-    #             else:
-    #                 status_icon = "⏳ PENDING"
-    #                 status_style = "dim"
-    #                 vuln_info = "Not executed"
-                
-    #             vulnerabilities.add_row(
-    #                 fuzzer.name,
-    #                 Text(status_icon, style=status_style),
-    #                 fuzzer.crash_description[:40] + "..." if fuzzer.crash_description and len(fuzzer.crash_description) > 40 else (fuzzer.crash_description or ""),
-    #                 vuln_info
-    #             )
+    fuzzers_table.add_column("Fuzzer")
+    fuzzers_table.add_column("Line")
+    fuzzers_table.add_column("File Path")
+    fuzzers_table.add_column("Status")
+    fuzzers_table.add_column("Crash type")
+    fuzzers_table.add_column("Crash description")
     
+    for fuzzer in fuzzers:
+        fuzzers_table.add_row(
+            fuzzer.artifactName,
+            str(fuzzer.artifactLine),
+            fuzzer.artifactPath,
+            get_pretty_test_status(fuzzer.status),
+            fuzzer.crashType,
+            fuzzer.crashDescription
+        )
+
     console.print(vulnerabilities)
-    
-    # 📊 ESTADÍSTICAS FINALES
-    stats_table = Table(title="📈 Summary Statistics", show_header=False)
-    stats_table.add_column("Metric", style="bold")
-    stats_table.add_column("Count", justify="right")
-    stats_table.add_column("Percentage", justify="right")
-    
-    stats_table.add_row("🧪 Total Fuzzers", str(total), "100%")
-    stats_table.add_row("✅ Passed", str(passed), f"{(passed/total*100):.1f}%" if total > 0 else "0%")
-    stats_table.add_row("❌ Vulnerabilities Found", str(vulnerable), f"{(vulnerable/total*100):.1f}%" if total > 0 else "0%")
-    stats_table.add_row("⚠️ Errors", str(errors), f"{(errors/total*100):.1f}%" if total > 0 else "0%")
-    
     console.print()
-    console.print(stats_table)
-    
-    # 🎯 RESULTADO FINAL
-    if vulnerable > 0:
-        result_style = "bold red"
-        result_icon = "🚨"
-        result_message = f"SECURITY ISSUES DETECTED! Found {vulnerable} vulnerable fuzzer(s)."
-    elif errors > 0:
-        result_style = "bold yellow"
-        result_icon = "⚠️"
-        result_message = f"COMPLETED WITH ERRORS. {errors} fuzzer(s) failed to execute properly."
-    else:
-        result_style = "bold green"
-        result_icon = "🎉"
-        result_message = "ALL TESTS PASSED! No vulnerabilities detected."
-    
+    console.print(artifacts_table)
     console.print()
-    console.print(Panel(
-        Align.center(f"{result_icon} {result_message}"),
-        border_style=result_style.split()[-1]  # Usar solo el color
-    ))
+    console.print(fuzzers_table)
+    
     
     
 def get_pretty_vulnerability_status(status: VulnerabilityStatus) -> str:
@@ -315,6 +309,18 @@ def get_pretty_vulnerability_status(status: VulnerabilityStatus) -> str:
         pretty_status = Text("Not affected", style="bold green")
     else:
         pretty_status = Text("Unknown", style="dim")
+    return pretty_status
+
+def get_pretty_test_status(status: TestStatus) -> str:
+    pretty_status = None
+    if status == TestStatus.VULNERABLE:
+        pretty_status = Text("Vulnerable", style="bold red")
+    elif status == TestStatus.NOT_VULNERABLE:
+        pretty_status = Text("Not vulnerable", style="bold green")
+    elif status in [TestStatus.ERROR_BUILDING, TestStatus.ERROR_EXECUTING, TestStatus.ERROR_GENERATING]:
+        pretty_status = Text(f"{status}", style="yellow")
+    else:
+        pretty_status = Text("UNKNOWN", style="dim")
     return pretty_status
 
 def get_pretty_artifacts_names(artifacts: list) -> str:
@@ -330,3 +336,19 @@ def get_pretty_artifacts_names(artifacts: list) -> str:
             else:
                 pretty_artifact_names.append(f"{artifact.name}\n", style="dim")
     return pretty_artifact_names
+
+def get_pretty_fuzzers_names(fuzzers: list) -> str:
+    pretty_fuzzer_names = Text()
+    if not fuzzers:
+        pretty_fuzzer_names.append("No fuzzers found", style="dim")
+    else:
+        for fuzzer in fuzzers:
+            if fuzzer.status == TestStatus.VULNERABLE:
+                pretty_fuzzer_names.append(f"{fuzzer.name}\n", style="bold red")
+            elif fuzzer.status == TestStatus.NOT_VULNERABLE:
+                pretty_fuzzer_names.append(f"{fuzzer.name}\n", style="bold green")
+            elif fuzzer.status in [TestStatus.ERROR_BUILDING, TestStatus.ERROR_EXECUTING, TestStatus.ERROR_GENERATING]:
+                pretty_fuzzer_names.append(f"{fuzzer.name}\n", style="yellow")
+            else:
+                pretty_fuzzer_names.append(f"{fuzzer.name}\n", style="dim")
+    return pretty_fuzzer_names

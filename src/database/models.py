@@ -30,12 +30,12 @@ class VulnerabilityStatus(enum.Enum):
     UNKNOWN = "unknown"
     
 class TestStatus(enum.Enum):
-    CREATED = "created"
-    ERROR_BUILDING = "error_building"
-    ERROR_EXECUTING = "error_executing"
-    ERROR_GENERATING = "error_generating"
-    VULNERABLE = "vulnerable"
-    NOT_VULNERABLE = "not_vulnerable"
+    CREATED = "Created"
+    ERROR_BUILDING = "Error building"
+    ERROR_EXECUTING = "Error executing"
+    ERROR_GENERATING = "Error generating"
+    VULNERABLE = "Vulnerable"
+    NOT_VULNERABLE = "Not vulnerable"
 
 # Association tables
 vulnerability_cwe = Table(
@@ -145,8 +145,8 @@ class Fuzzer(Base):
     artifactLine: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[TestStatus] = mapped_column(Enum(TestStatus))
     usesParameters: Mapped[bool] = mapped_column(nullable=False, default=True)
-    crash_type: Mapped[str] = mapped_column(String, nullable=True)
-    crash_description: Mapped[str] = mapped_column(String, nullable=True)
+    crashType: Mapped[str] = mapped_column(String, nullable=True)
+    crashDescription: Mapped[str] = mapped_column(String, nullable=True)
 
     # FK
     artifacts: Mapped[set["Artifact"]] = relationship(secondary=artifact_fuzzer, back_populates="fuzzers")
