@@ -14,12 +14,12 @@ class ConfidenceLevel(enum.Enum):
     HIGH = "high"
     ABSOLUTE = "absolute"
     
-    def get_timeout_minutes(self):
-        """Returns the timeout in minutes for each confidence level"""
+    def get_timeout_seconds(self):
+        """Returns the timeout in seconds for each confidence level"""
         timeouts = {
-            ConfidenceLevel.LOW: 2,
-            ConfidenceLevel.MEDIUM: 10,
-            ConfidenceLevel.HIGH: 60,
+            ConfidenceLevel.LOW: 120,
+            ConfidenceLevel.MEDIUM: 600,
+            ConfidenceLevel.HIGH: 3600,
             ConfidenceLevel.ABSOLUTE: None  # No limit
         }
         return timeouts[self]

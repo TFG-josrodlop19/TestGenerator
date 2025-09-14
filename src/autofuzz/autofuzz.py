@@ -8,6 +8,10 @@ from utils.classes import TestStatus
 from database.operations import get_created_fuzzers_by_project, update_fuzzer_status
 from database.models import Fuzzer, ConfidenceLevel
 
+def handle_readonly(func, path, exc):
+    os.chmod(path, 0o755)
+    func(path)
+
 def build_tests(owner: str, name: str):
     """
     Executes the OSS-Fuzz build_fuzzers command to compile the generated fuzz tests.
@@ -31,8 +35,11 @@ def build_tests(owner: str, name: str):
     # Clean previous build outputs
     build_out_dir = oss_fuzz_root / "build" / "out" / project
     if build_out_dir.exists():
-        shutil.rmtree(build_out_dir)
-    
+        print(f"Cleaning previous build directory: {build_out_dir}")
+        try:
+            shutil.rmtree(build_out_dir, onerror=handle_readonly)
+        except Exception:
+            print(f"Error cleaning build directory: {build_out_dir}")
     try:
         # Execute the build_fuzzers command using the venv Python
         print(f"Building fuzzers for project: {project}")
@@ -87,7 +94,7 @@ def check_compilation_failures(owner: str, name: str, fuzzers: list[Fuzzer]):
 def execute_tests(owner: str, name: str, confidence: ConfidenceLevel):
     repo_path = generate_path_repo(owner, name)
     project = Path(repo_path).name
-    confidence = confidence.get_timeout_minutes()
+    confidence = confidence.get_timeout_seconds()
     
     # Directorio donde OSS-Fuzz guarda los binarios compilados
     oss_fuzz_root = Path(repo_path).parent.parent
