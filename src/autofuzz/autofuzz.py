@@ -3,10 +3,11 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from utils.file_writer import generate_path_repo, read_test_info_from_json, update_test_status
+from utils.file_writer import generate_path_repo
 from utils.classes import TestStatus
 from database.operations import get_created_fuzzers_by_project, update_fuzzer_status
 from database.models import Fuzzer, ConfidenceLevel
+import re
 
 def handle_readonly(func, path, exc):
     os.chmod(path, 0o755)
@@ -143,26 +144,41 @@ def execute_tests(owner: str, name: str, confidence: ConfidenceLevel):
                     text=True
                     )
                 
-                # Analizar resultado
+                # Analyze results
                 output = result.stdout + result.stderr
                 
                 if result.returncode == 0:
-                    # Fuzzer ejecutó sin crashes
-                    print(f"✅ {fuzzer_name}: Completado sin issues")
+                    # No vulnerabilities found
+                    print(f"✅ {fuzzer_name}: Completed without finding vulnerabilities.")
                     update_fuzzer_status(fuzzer.id, TestStatus.NOT_VULNERABLE)
                 else:
-                    # Fuzzer encontró algo o falló
+                    # Fuzzer found a vulnerability or crashed
                     if any(keyword in output for keyword in ["ASAN", "heap-buffer-overflow", "AddressSanitizer", "SEGV", "abrt", "FuzzerSecurityIssue", "DEDUP_TOKEN"]):
-                        print(f"{fuzzer_name}: VULNERABILIDAD ENCONTRADA!")
-                        update_fuzzer_status(fuzzer.id, TestStatus.VULNERABLE)
+                        print(f"❌ {fuzzer_name}: Vulnerability found!")
+                        crash_info = extract_vulnerability_info(output)
+                        update_fuzzer_status(fuzzer.id, TestStatus.VULNERABLE, crash_info=crash_info)
                     else:
-                        print(f"{fuzzer_name}: Error de ejecución")
+                        print(f"⚠️ {fuzzer_name}: Execution error")
                         update_fuzzer_status(fuzzer.id, TestStatus.ERROR_EXECUTING)
-                
-                # Guardar output para análisis
-                print(f"Output preview: {output[:200]}...")
-                
             except Exception as e:
-                print(f"💥 {fuzzer_name}: Error inesperado: {e}")
+                print(f"💥 {fuzzer_name}: Unexpected error: {e}")
                 update_fuzzer_status(fuzzer.id, TestStatus.ERROR_EXECUTING)
 
+def extract_vulnerability_info(output: str) -> dict:
+    """
+    Extracts vulnerability type and description from the fuzzer output.
+    """
+    # Pattern to capture the type and description of the vulnerability
+    pattern = r"FuzzerSecurityIssue(?:High|Medium|Low)?: ([^\n]+)\n(.*?)(?=\n\tat|$)"
+    
+    match = re.search(pattern, output, re.DOTALL)
+    if match:
+        vulnerability_type = match.group(1).strip()
+        description = match.group(2).strip()
+        
+        return {
+            'type': vulnerability_type.replace("\n", " "),
+            'description': description.replace("\n", " ")
+        }
+    
+    return None

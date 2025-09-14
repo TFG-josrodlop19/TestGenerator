@@ -161,17 +161,12 @@ def standardize_parameters(params: list):
         if 'value' in param:
             param['name'] = param['value'].rsplit(' ', 1)[-1]
         
-        # <<-- CAMBIO: Maneja ambas claves para los constructores -->>
-        # Busca la lista de constructores, sin importar el nombre de la clave.
         constructor_list = param.get("constructor") or param.get("parameterConstructors")
 
         if constructor_list:
-            # Es un objeto complejo, procesamos sus parámetros recursivamente.
-            # Asumimos que siempre usamos la primera sobrecarga del constructor.
             constructor_params = constructor_list[0].get("parameters", [])
             standardize_parameters(constructor_params)
         else:
-            # Es un tipo primitivo, le asignamos su método de fuzzing.
             java_type = param.get('type')
             param['fuzz_method'] = TYPE_TO_FUZZ_FUNCTION.get(java_type, f"// Tipo no soportado: {java_type}")
 
@@ -183,15 +178,14 @@ def format_java_file(file_path: str):
         file_path (str): Ruta del archivo Java a formatear
     """
     try:
-        # Obtener la ruta del proyecto (donde está este archivo)
-        root_path = Path(__file__).parent.parent.parent  # src/test_generator/generator.py -> proyecto raíz
+        root_path = Path(__file__).parent.parent.parent
         google_format_jar = root_path / "libraries" / "google-java-format-1.28.0-all-deps.jar"
 
         if not google_format_jar.exists():
             print("Google Java Format JAR not found")
             return
-        
-        # Ejecutar el formatter
+
+        # Execute formatter
         result = subprocess.run([
             "java", "-jar", str(google_format_jar),
             "--replace", str(file_path)
@@ -238,12 +232,25 @@ def generate_fuzzers(owner: str, repo_name: str, artifacts_data: dict):
                                     data=entry_data,
                                     exit_directory=str(test_dir)
                                 )
+                                
                                 uses_parameters = entry_data.get("usesParameters")
+
+                                # Remove repo part from path
+                                full_path = Path(entry_data.get("filePath"))
+                                relative_path = full_path.relative_to(dest_path)
+                                artifactPath = relative_path
+
+                                artifactName = entry_data.get("artifactName") if entry_data.get("artifactName") else entry_data.get("qualifierName")
+                                artifact_line = entry_data.get("lineNumber")
+                                
                                 fuzzer = Fuzzer(
                                     testPath=str(test_path),
                                     name=test_path.stem,
                                     status=TestStatus.CREATED,
-                                    usesParameters=uses_parameters
+                                    usesParameters=uses_parameters,
+                                    artifactPath=str(artifactPath),
+                                    artifactName=str(artifactName),
+                                    artifactLine=int(artifact_line)
                                 )
 
                             except Exception as e:

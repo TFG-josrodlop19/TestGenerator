@@ -140,8 +140,13 @@ class Fuzzer(Base):
     #Attributes
     testPath: Mapped[str] = mapped_column(String, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
+    artifactPath: Mapped[str] = mapped_column(String, nullable=False)
+    artifactName: Mapped[str] = mapped_column(String, nullable=False)
+    artifactLine: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[TestStatus] = mapped_column(Enum(TestStatus))
     usesParameters: Mapped[bool] = mapped_column(nullable=False, default=True)
+    crash_type: Mapped[str] = mapped_column(String, nullable=True)
+    crash_description: Mapped[str] = mapped_column(String, nullable=True)
 
     # FK
     artifacts: Mapped[set["Artifact"]] = relationship(secondary=artifact_fuzzer, back_populates="fuzzers")
