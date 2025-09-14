@@ -9,22 +9,22 @@ import org.json.JSONObject;
 public class App {
 
     public static void main(String[] args) {
-        // if (args.length < 2) {
-        //     System.err.println("Use: java -jar analyzer.jar <pom_path> <artifacts_json>");
-        //     System.exit(1);
-        // }
-        // String pomPath = args[0];
-        // String artifactsJson = args[1];
+        if (args.length < 2) {
+            System.err.println("Use: java -jar analyzer.jar <pom_path> <artifacts_json>");
+            System.exit(1);
+        }
+        String pomPath = args[0];
+        String artifactsJson = args[1];
 
-        String pomPath = "/home/josue/universidad/TFG/code/TestGenerator/OSS-Fuzz/projects/tfg-josrodlop19_vulnerableproject2/pom.xml";
-        String artifactsJson = 
-                "[\n" +
-                "  {\n" +
-                "    \"file_path\": \"/home/josue/universidad/TFG/code/TestGenerator/VulnerableProject2/src/main/java/com/example/VulnerableApp.java\",\n" +
-                "    \"target_line\": 28,\n" +
-                "    \"target_name\": \"XStream\"\n" +
-                "  }\n" +
-                "]";
+        // String pomPath = "/home/josue/universidad/TFG/code/TestGenerator/OSS-Fuzz/projects/tfg-josrodlop19_vulnerableproject1/pom.xml";
+        // String artifactsJson = 
+        //         "[\n" +
+        //         "  {\n" +
+        //         "    \"file_path\": \"/home/josue/universidad/TFG/code/TestGenerator/OSS-Fuzz/projects/tfg-josrodlop19_vulnerableproject1/src/main/java/com/example/JsonProcessor.java\",\n" +
+        //         "    \"target_line\": 24,\n" +
+        //         "    \"target_name\": \"readValue\"\n" +
+        //         "  }\n" +
+        //         "]";
         try {
             // Parse JSON array
             JSONArray artifacts = new JSONArray(artifactsJson);

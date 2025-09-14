@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -12,6 +14,8 @@ import spoon.reflect.CtModel;
 import spoon.reflect.code.CtAbstractInvocation;
 import spoon.reflect.code.CtConstructorCall;
 import spoon.reflect.code.CtInvocation;
+import spoon.reflect.code.CtStatement;
+import spoon.reflect.code.CtVariableRead;
 import spoon.reflect.declaration.CtConstructor;
 import spoon.reflect.declaration.CtExecutable;
 import spoon.reflect.declaration.CtMethod;
@@ -29,7 +33,8 @@ public class StackCallProcessor {
 
     // Executable is the superclass for both CtMethod and CtConstructor
     private Map<String, CtExecutable<?>> executables;
-    // CtAbstractInvocation is the superclass for both CtInvocation and CtConstructorCall
+    // CtAbstractInvocation is the superclass for both CtInvocation and
+    // CtConstructorCall
     private Map<String, List<CtAbstractInvocation<?>>> methodInvocations;
     private Map<String, List<CtConstructorCall<?>>> constructorCalls;
     private ArtifactData callTree;
@@ -142,6 +147,8 @@ public class StackCallProcessor {
 
             // No buscar callers para cortar la recursión
             treeNode.setCallers(new ArrayList<>());
+            Boolean usesTargetFields = checkIfMethodUsesItsParameters(currentMethod);
+            treeNode.setUsesParameters(usesTargetFields);
             return treeNode;
         }
 
@@ -151,6 +158,8 @@ public class StackCallProcessor {
 
         List<ArtifactData> callers = findAllCallers(currentMethod, newPath);
         treeNode.getCallers().addAll(callers);
+        Boolean usesParameters = checkIfMethodUsesItsParameters(currentMethod);
+        treeNode.setUsesParameters(usesParameters);
 
         return treeNode;
     }
@@ -167,6 +176,7 @@ public class StackCallProcessor {
                     // Encontramos un caller, agregar al árbol recursivamente
                     // Cada invocación se procesa independientemente con su propio path
                     ArtifactData callerNode = buildCallTree(invocation, currentPath);
+
                     callers.add(callerNode);
                 }
             }
@@ -175,9 +185,36 @@ public class StackCallProcessor {
         return callers;
     }
 
+    private Boolean checkIfMethodUsesItsParameters(CtExecutable<?> targetMethod) {
+        // Get method parameters
+        List<CtParameter<?>> methodParameters = targetMethod.getParameters();
+        if (methodParameters.isEmpty())
+            return false; // If there is no parameters, fuzzer only need one iteration
+
+        CtStatement body = targetMethod.getBody();
+        if (body == null)
+            return false;
+
+        // Find all references to variables
+        List<CtVariableRead<?>> varReads = body.getElements(new TypeFilter<>(CtVariableRead.class));
+
+        // Create set of parameter names for quick lookup
+        Set<String> parameterNames = methodParameters.stream()
+                .map(CtParameter::getSimpleName)
+                .collect(Collectors.toSet());
+
+        // Verify if params are used
+        for (CtVariableRead<?> varRead : varReads) {
+            String varName = varRead.getVariable().getSimpleName();
+            if (parameterNames.contains(varName)) {
+                return true; // At least one parameter is used
+            }
+        }
+
+        return false;
+    }
+
     private Boolean isCallingTargetExecutable(CtAbstractInvocation<?> invocation, CtExecutable<?> targetExecutable) {
-        // La forma más robusta de comparar es usando las referencias, que contienen la
-        // firma completa.
         return targetExecutable.getReference().equals(invocation.getExecutable());
     }
 
@@ -198,6 +235,7 @@ public class StackCallProcessor {
         nodeInfo.put("parameters", treeNode.getParameters());
         nodeInfo.put("isStatic", treeNode.getIsStatic());
         nodeInfo.put("isPublic", treeNode.getIsPublic());
+        nodeInfo.put("usesParameters", treeNode.getUsesParameters());
         nodeInfo.put("constructorParameters", treeNode.getConstructorParameters());
 
         List<Map<String, Object>> newPath = new ArrayList<>(currentPath);

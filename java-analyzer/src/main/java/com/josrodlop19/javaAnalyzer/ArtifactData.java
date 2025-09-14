@@ -25,6 +25,7 @@ public class ArtifactData {
     private String target;
     private Boolean isStatic;
     private Boolean isPublic;
+    private Boolean usesParameters;
     private List<Map<String, Object>> parameters;
     private List<Map<String, Object>> constructorParameters;
 

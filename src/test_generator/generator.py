@@ -238,10 +238,12 @@ def generate_fuzzers(owner: str, repo_name: str, artifacts_data: dict):
                                     data=entry_data,
                                     exit_directory=str(test_dir)
                                 )
+                                uses_parameters = entry_data.get("usesParameters")
                                 fuzzer = Fuzzer(
                                     testPath=str(test_path),
                                     name=test_path.stem,
-                                    status=TestStatus.CREATED
+                                    status=TestStatus.CREATED,
+                                    usesParameters=uses_parameters
                                 )
 
                             except Exception as e:

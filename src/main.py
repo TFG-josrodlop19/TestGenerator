@@ -73,7 +73,7 @@ def run(
         raise FileNotFoundError(f"Error: POM file not found at {resolved_pom_path}")
 
     # TODO: quitar luego confidence de aqui
-    # confidence = ConfidenceLevel.MEDIUM
+    confidence = ConfidenceLevel.MEDIUM
     project = create_project(owner, name, pom_path, confidence)
     
     vulnerabilities = None
@@ -175,13 +175,13 @@ def init(
     
 
 if __name__ == "__main__":
-    app()
-    # run(
-    #     owner="TFG-josrodlop19",
-    #     name="VulnerableProject1", 
-    #     pom_path="pom.xml",
-    #     reload=False
-    # )
+    # app()
+    run(
+        owner="TFG-josrodlop19",
+        name="VulnerableProject1", 
+        pom_path="pom.xml",
+        reload=False
+    )
     
     # securechaindev / vex_generation_test 
     # TFG-josrodlop19 / VulnerableProject1

@@ -141,6 +141,7 @@ class Fuzzer(Base):
     testPath: Mapped[str] = mapped_column(String, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[TestStatus] = mapped_column(Enum(TestStatus))
+    usesParameters: Mapped[bool] = mapped_column(nullable=False, default=True)
 
     # FK
     artifacts: Mapped[set["Artifact"]] = relationship(secondary=artifact_fuzzer, back_populates="fuzzers")
