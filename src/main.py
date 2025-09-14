@@ -8,9 +8,8 @@ from vexgen_caller.auth import signup, login
 from vexgen_caller.vex_generator import generate_vex, get_tix_data
 from utils.file_writer import resolve_path, generate_path_repo
 from utils.git_utils import clone_repo
-from autofuzz.autofuzz import build_tests, execute_tests
+from autofuzz.autofuzz import build_tests, execute_tests, print_tests_results
 from database.models import ConfidenceLevel
-
 from database.setup import setup_database
 from database.operations import create_project, create_vulnerabilities_artifacts, update_states_after_execution
 
@@ -111,10 +110,9 @@ def run(
         build_tests(owner, name)
         execute_tests(owner, name, confidence)
         update_states_after_execution(owner, name)
-     
-     
-     
-     
+        print_tests_results(owner, name)
+
+
      
                 
 def repair_tests(
@@ -176,12 +174,12 @@ def init(
 
 if __name__ == "__main__":
     # app()
-    run(
-        owner="TFG-josrodlop19",
-        name="VulnerableProject1", 
-        pom_path="pom.xml",
-        reload=False
-    )
-    
-    # securechaindev / vex_generation_test 
+    # run(
+    #     owner="TFG-josrodlop19",
+    #     name="VulnerableProject1", 
+    #     pom_path="pom.xml",
+    #     reload=False
+    # )
+    print_tests_results("TFG-josrodlop19", "VulnerableProject1")
+    # securechaindev / vex_generation_test
     # TFG-josrodlop19 / VulnerableProject1
