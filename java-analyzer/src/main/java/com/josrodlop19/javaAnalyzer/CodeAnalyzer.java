@@ -15,6 +15,8 @@ import lombok.Setter;
 import spoon.MavenLauncher;
 import spoon.SpoonAPI;
 import spoon.reflect.CtModel;
+import spoon.reflect.code.CtAbstractInvocation;
+import spoon.reflect.code.CtConstructorCall;
 import spoon.reflect.code.CtInvocation;
 import spoon.reflect.declaration.CtType;
 import spoon.reflect.visitor.filter.TypeFilter;
@@ -34,7 +36,7 @@ public class CodeAnalyzer {
     // Attribute to store target method invocation
     @Setter(AccessLevel.PRIVATE)
     @Getter(AccessLevel.PRIVATE)
-    private CtInvocation<?> targetInvocation;
+    private CtAbstractInvocation<?> targetInvocation;
 
     // Attribute to store artifact data
     @Setter(AccessLevel.PRIVATE)
@@ -59,6 +61,8 @@ public class CodeAnalyzer {
     public void processCode() {
         // Main method to process the code
         findFunctionInvocation();
+        System.out.println("Target name: " + this.targetName);
+        System.out.println("Found invocation: " + this.targetInvocation);
         if (this.targetInvocation != null) {
             ArtifactData artifactData = OutputDataBuilder.extractArtifactData(this.targetInvocation);
             this.setArtifactData(artifactData);
@@ -103,10 +107,10 @@ public class CodeAnalyzer {
 
                     if (nodeCanonicalPath.equals(canonicalTargetPath)) {
                         // Get all invocations in the current type
-                        List<CtInvocation<?>> invocationsInClass = node
-                                .getElements(new TypeFilter<>(CtInvocation.class));
+                        List<CtAbstractInvocation<?>> invocationsInClass = node
+                                .getElements(new TypeFilter<>(CtAbstractInvocation.class));
 
-                        CtInvocation<?> foundInvocation = findFunctionInsideCtType(invocationsInClass);
+                        CtAbstractInvocation<?> foundInvocation = findFunctionInsideCtType(invocationsInClass);
 
                         if (foundInvocation != null) {
                             this.setTargetInvocation(foundInvocation);
@@ -126,17 +130,32 @@ public class CodeAnalyzer {
         }
     }
 
-    private CtInvocation<?> findFunctionInsideCtType(List<CtInvocation<?>> allInvocationsInNode) {
-        CtInvocation<?> foundInvocation = null;
-        for (CtInvocation<?> invocation : allInvocationsInNode) {
+    private CtAbstractInvocation<?> findFunctionInsideCtType(List<CtAbstractInvocation<?>> allInvocationsInNode) {
+        for (CtAbstractInvocation<?> invocation : allInvocationsInNode) {
             if (invocation.getPosition().isValidPosition() &&
-                    invocation.getPosition().getLine() == this.targetLine &&
-                    invocation.getExecutable().getSimpleName().equals(this.targetName)) {
-                foundInvocation = invocation;
-                break;
+                    invocation.getPosition().getLine() == this.targetLine) {
+
+                // Get the invocation name based on its type (method or constructor)
+                String invocationName = getInvocationName(invocation);
+
+                if (invocationName.equals(this.targetName)) {
+                    return invocation;
+                }
             }
         }
-        return foundInvocation;
+        return null;
+    }
+
+    // Method to get the name of the invocation, handling different types
+    private String getInvocationName(CtAbstractInvocation<?> invocation) {
+        if (invocation instanceof CtInvocation) {
+            // For methods: use getSimpleName()
+            return ((CtInvocation<?>) invocation).getExecutable().getSimpleName();
+        } else if (invocation instanceof CtConstructorCall) {
+            // For constructors: use the class name
+            return ((CtConstructorCall<?>) invocation).getType().getSimpleName();
+        }
+        return "";
     }
 
     public String getCompleteDataAsString() {

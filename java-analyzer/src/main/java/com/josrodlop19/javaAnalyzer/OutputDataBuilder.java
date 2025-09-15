@@ -20,11 +20,11 @@ public class OutputDataBuilder {
     // Profundidad máxima para evitar recursión infinita
     private static final int MAX_RECURSION_DEPTH = 5;
 
-    public static ArtifactData extractArtifactData(CtInvocation<?> invocation) {
+    public static ArtifactData extractArtifactData(CtAbstractInvocation<?> invocation) {
         return extractArtifactData(invocation, 0);
     }
 
-    public static ArtifactData extractArtifactData(CtInvocation<?> invocation, int recursionDepth) {
+    public static ArtifactData extractArtifactData(CtAbstractInvocation<?> invocation, int recursionDepth) {
         if (invocation == null) {
             throw new IllegalStateException("Target invocation not found.");
         }
@@ -34,15 +34,19 @@ public class OutputDataBuilder {
         data.setClassName(invocation.getPosition().getFile().getName().replace(".java", ""));
         data.setLineNumber(invocation.getPosition().getLine());
         data.setFilePath(invocation.getPosition().getFile().getAbsolutePath());
-        data.setPackageName(invocation.getPosition().getCompilationUnit().getPackageDeclaration() != null ? 
-            invocation.getPosition().getCompilationUnit().getPackageDeclaration().toString() : "");
+        data.setPackageName(invocation.getPosition().getCompilationUnit().getPackageDeclaration() != null
+                ? invocation.getPosition().getCompilationUnit().getPackageDeclaration().toString()
+                : "");
 
         // Get artifact type and name
         data.setNodeType(invocation.getClass().getSimpleName());
         data.setArtifactName(invocation.getExecutable().getSimpleName());
 
         // Get qualifier type
-        CtExpression<?> target = invocation.getTarget();
+        CtExpression<?> target = null;
+        if (invocation instanceof CtInvocation) {
+            target = ((CtInvocation<?>) invocation).getTarget();
+        }
         if (target != null) {
             CtTypeReference<?> qualifierTypeRef = target.getType();
             String qualifierType = (qualifierTypeRef != null) ? qualifierTypeRef.getQualifiedName() : "UNRESOLVED_TYPE";
@@ -83,8 +87,9 @@ public class OutputDataBuilder {
         treeNode.setFilePath(method.getPosition().getFile().getAbsolutePath());
         treeNode.setClassName(method.getDeclaringType().getSimpleName());
         treeNode.setLineNumber(method.getPosition().getLine());
-        treeNode.setPackageName(method.getPosition().getCompilationUnit().getPackageDeclaration() != null ? 
-            method.getPosition().getCompilationUnit().getPackageDeclaration().toString() : "");
+        treeNode.setPackageName(method.getPosition().getCompilationUnit().getPackageDeclaration() != null
+                ? method.getPosition().getCompilationUnit().getPackageDeclaration().toString()
+                : "");
 
         treeNode.setNodeType(method.getClass().getSimpleName());
         treeNode.setQualifierType(method.getDeclaringType().getQualifiedName());
@@ -99,7 +104,8 @@ public class OutputDataBuilder {
 
         // Get constructor parameters info for the declaring type
         if (!method.isStatic()) {
-            List<Map<String, Object>> constructorParamsData = extractConstructorInfo(method.getDeclaringType().getReference(), recursionDepth);
+            List<Map<String, Object>> constructorParamsData = extractConstructorInfo(
+                    method.getDeclaringType().getReference(), recursionDepth);
             treeNode.setConstructorParameters(constructorParamsData);
         }
 
@@ -115,8 +121,9 @@ public class OutputDataBuilder {
         treeNode.setFilePath(constructor.getPosition().getFile().getAbsolutePath());
         treeNode.setClassName(constructor.getDeclaringType().getSimpleName());
         treeNode.setLineNumber(constructor.getPosition().getLine());
-        treeNode.setPackageName(constructor.getPosition().getCompilationUnit().getPackageDeclaration() != null ? 
-            constructor.getPosition().getCompilationUnit().getPackageDeclaration().toString() : "");
+        treeNode.setPackageName(constructor.getPosition().getCompilationUnit().getPackageDeclaration() != null
+                ? constructor.getPosition().getCompilationUnit().getPackageDeclaration().toString()
+                : "");
 
         treeNode.setNodeType(constructor.getClass().getSimpleName());
         treeNode.setQualifierType(constructor.getDeclaringType().getQualifiedName());
@@ -138,8 +145,9 @@ public class OutputDataBuilder {
         treeNode.setFilePath(invocation.getPosition().getFile().getAbsolutePath());
         treeNode.setLineNumber(invocation.getPosition().getLine());
         treeNode.setClassName(invocation.getPosition().getFile().getName().replace(".java", ""));
-        treeNode.setPackageName(invocation.getPosition().getCompilationUnit().getPackageDeclaration() != null ? 
-            invocation.getPosition().getCompilationUnit().getPackageDeclaration().toString() : "");
+        treeNode.setPackageName(invocation.getPosition().getCompilationUnit().getPackageDeclaration() != null
+                ? invocation.getPosition().getCompilationUnit().getPackageDeclaration().toString()
+                : "");
 
         treeNode.setNodeType("Root");
         treeNode.setTarget(invocation.getExecutable().getSimpleName());

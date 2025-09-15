@@ -13,7 +13,6 @@ import lombok.Setter;
 import spoon.reflect.CtModel;
 import spoon.reflect.code.CtAbstractInvocation;
 import spoon.reflect.code.CtConstructorCall;
-import spoon.reflect.code.CtInvocation;
 import spoon.reflect.code.CtStatement;
 import spoon.reflect.code.CtVariableRead;
 import spoon.reflect.declaration.CtConstructor;
@@ -27,7 +26,7 @@ import spoon.reflect.visitor.filter.TypeFilter;
 @Getter
 @Setter
 public class StackCallProcessor {
-    private CtInvocation<?> targetInvocation;
+    private CtAbstractInvocation<?> targetInvocation;
     @Setter(AccessLevel.PRIVATE)
     private CtModel AST;
 
@@ -40,7 +39,7 @@ public class StackCallProcessor {
     private ArtifactData callTree;
     private List<List<Map<String, Object>>> allCallPaths;
 
-    public StackCallProcessor(CtInvocation<?> targetInvocation, CtModel AST) {
+    public StackCallProcessor(CtAbstractInvocation<?> targetInvocation, CtModel AST) {
         this.targetInvocation = targetInvocation;
         this.AST = AST;
         this.executables = new LinkedHashMap<>();

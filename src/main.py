@@ -87,7 +87,8 @@ def run(
         vulnerabilities, artifacts_json = get_tix_data(owner, name)
 
     if not vulnerabilities or len(vulnerabilities) == 0:
-        raise ValueError("No vulnerabilities found in the TIX file.")
+        print("No vulnerabilities found in the TIX file.")
+        return
 
     create_vulnerabilities_artifacts(project.id, vulnerabilities)
     
