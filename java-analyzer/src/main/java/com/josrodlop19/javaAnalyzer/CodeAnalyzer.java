@@ -61,8 +61,6 @@ public class CodeAnalyzer {
     public void processCode() {
         // Main method to process the code
         findFunctionInvocation();
-        System.out.println("Target name: " + this.targetName);
-        System.out.println("Found invocation: " + this.targetInvocation);
         if (this.targetInvocation != null) {
             ArtifactData artifactData = OutputDataBuilder.extractArtifactData(this.targetInvocation);
             this.setArtifactData(artifactData);

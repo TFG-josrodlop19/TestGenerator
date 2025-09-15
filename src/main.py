@@ -171,14 +171,14 @@ def init(
     
 
 if __name__ == "__main__":
-    app()
-    # run(
-    #     owner="TFG-josrodlop19",
-    #     name="VulnerableProject2", 
-    #     pom_path="pom.xml",
-    #     reload=False,
-    #     confidence=ConfidenceLevel.MEDIUM
-    # )
+    # app()
+    run(
+        owner="TFG-josrodlop19",
+        name="VulnerableProject4", 
+        pom_path="pom.xml",
+        reload=False,
+        confidence=ConfidenceLevel.MEDIUM
+    )
     # print_tests_results("TFG-josrodlop19", "VulnerableProject1", True)
     # securechaindev / vex_generation_test
     # TFG-josrodlop19 / VulnerableProject1
