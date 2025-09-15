@@ -1,0 +1,117 @@
+{# Macro for building parameters recursively #}
+{% macro build_parameter(param, parent_name="", indent_level=2) %}
+    {% set indent = " " * (indent_level * 4) %}
+    {% set constructor_list = param.constructor or param.parameterConstructors %}
+    
+    {% if constructor_list %}
+        {# If the parameter has a constructor, create nested parameters #}
+        {% set constructor = constructor_list[0] %}
+
+        {# Recursively build constructor parameters #}
+        {% for nested_param in constructor.parameters %}
+{{ build_parameter(nested_param, parent_name=parent_name + param.name + "_", indent_level=indent_level) }}
+        {% endfor %}
+
+        {# Create the instance of the complex object #}
+{{ indent }}{{ param.type }} {{ parent_name }}{{ param.name }} = new {{ param.type }}(
+        {% for nested_param in constructor.parameters %}
+{{ " " * ((indent_level + 1) * 4) }}{{ parent_name }}{{ param.name }}_{{ nested_param.name }}{% if not loop.last %},{% endif %}
+        {% endfor %}
+{{ indent }});
+    {% else %}
+        {# Simple parameter, use dataProvider directly #}
+{{ indent }}{{ param.type }} {{ parent_name }}{{ param.name }} = {{ param.fuzz_method }};
+    {% endif %}
+{% endmacro %}
+
+{# Macro for finding and collecting necessary imports #}
+{% macro find_imports(params) %}
+    {% for param in params %}
+        {% set constructor_list = param.constructor or param.parameterConstructors %}
+        {% if constructor_list %}
+            {% if param.type not in imports %}
+                {% set _ = imports.append(param.type) %}
+            {% endif %}
+{{ find_imports(constructor_list[0].parameters) }}
+        {% endif %}
+    {% endfor %}
+{% endmacro %}
+
+
+{# FIle structure#}
+
+{# Package declaration #}
+{{ packageName }}
+
+{# Basic imports #}
+import com.code_intelligence.jazzer.api.FuzzedDataProvider;
+import {{ qualifierType }};
+
+{# Collect additional imports #}
+{% set imports = [] %}
+{{ find_imports(parameters) }}
+{# Also search for imports in constructorParameters #}
+{% if constructorParameters %}
+{{ find_imports(constructorParameters[0].parameters) }}
+{% endif %}
+
+{# Dynamic imports based on parameters #}
+{% for import_path in imports|unique %}
+import {{ import_path }};
+{% endfor %}
+
+{# Standard import for exceptions #}
+import java.io.IOException;
+
+{# Fuzzer class #}
+
+/**
+ * Fuzzer generated for class: {{ className }}.
+ * Objetivo: {% if artifactName %}método {{ artifactName }}{% else %}constructor{% endif %} en la línea {{ lineNumber }}.
+ */
+public class {{ className | default(qualifierType_simple_name) }}{{ artifactName | default("Constructor") | capitalize }}Fuzzer {
+
+    public static void fuzzerTestOneInput(FuzzedDataProvider dataProvider) {
+        
+        // Generate parameters for the target method or constructor
+        {% if not isStatic and nodeType != 'CtConstructorImpl' %}
+            {% set instance_name = qualifierType_simple_name | lower + "_instance" %}
+        {% endif %}
+        {% for param in parameters %}
+{{ build_parameter(param, indent_level=2).strip() }}
+        {% endfor %}
+
+        // Instance creation
+        {% if not isStatic and nodeType != 'CtConstructorImpl' %}
+            {% if constructorParameters and constructorParameters|length > 0 %}
+                {# Generate parameters for the instance constructor #}
+                {% for param in constructorParameters[0].parameters %}
+{{ build_parameter(param, parent_name="constructor_", indent_level=2).strip() }}
+                {% endfor %}
+        
+        {{ qualifierType_simple_name }} {{ instance_name }} = new {{ qualifierType_simple_name }}(
+                {% for param in constructorParameters[0].parameters %}
+            constructor_{{ param.name }}{% if not loop.last %},{% endif %}
+                {% endfor %}
+        );
+            {% else %}
+        {{ qualifierType_simple_name }} {{ instance_name }} = new {{ qualifierType_simple_name }}();
+            {% endif %}
+        {% endif %}
+
+        // Method call
+        try {
+            {% if nodeType == 'CtConstructorImpl' %}
+            new {{ qualifierType_simple_name }}({{ parameters | map(attribute='name') | join(', ') }});
+            {% else %}
+                {% if isStatic %}
+            {{ qualifierType_simple_name }}.{{ artifactName }}({{ parameters | map(attribute='name') | join(', ') }});
+                {% else %}
+            {{ instance_name }}.{{ artifactName }}({{ parameters | map(attribute='name') | join(', ') }});
+                {% endif %}
+            {% endif %}
+        } catch (Exception e) {
+            // Ignore expected exceptions
+        }
+    }
+}

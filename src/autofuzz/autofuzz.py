@@ -1,4 +1,5 @@
 import os
+import stat
 import shutil
 import subprocess
 import sys
@@ -13,11 +14,6 @@ from rich.table import Table
 from rich.panel import Panel
 from rich.align import Align
 from rich.text import Text
-from rich import box
-
-def handle_readonly(func, path, exc):
-    os.chmod(path, 0o755)
-    func(path)
 
 def build_tests(owner: str, name: str):
     """
@@ -38,15 +34,7 @@ def build_tests(owner: str, name: str):
     oss_fuzz_root = Path(repo_path).parent.parent
     if not oss_fuzz_root.exists():
         raise FileNotFoundError(f"OSS-Fuzz root does not exist: {oss_fuzz_root}")
-    
-    # Clean previous build outputs
-    build_out_dir = oss_fuzz_root / "build" / "out" / project
-    if build_out_dir.exists():
-        print(f"Cleaning previous build directory: {build_out_dir}")
-        try:
-            shutil.rmtree(build_out_dir, onerror=handle_readonly)
-        except Exception:
-            print(f"Error cleaning build directory: {build_out_dir}")
+
     try:
         # Execute the build_fuzzers command using the venv Python
         print(f"Building fuzzers for project: {project}")

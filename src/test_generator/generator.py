@@ -151,8 +151,7 @@ TYPE_TO_FUZZ_FUNCTION = {
 
 def standardize_parameters(params: list):
     """
-    Función recursiva mejorada que estandariza los parámetros.
-    Ahora maneja tanto la clave 'constructor' como 'parameterConstructors'.
+    Recursively standardizes parameter names and adds fuzzing methods based on their types.
     """
     if not params:
         return
@@ -172,10 +171,7 @@ def standardize_parameters(params: list):
 
 def format_java_file(file_path: str):
     """
-    Formatea un archivo Java usando Google Java Format.
-    
-    Args:
-        file_path (str): Ruta del archivo Java a formatear
+    Formats a Java file using Google Java Format.
     """
     try:
         root_path = Path(__file__).parent.parent.parent
@@ -254,12 +250,36 @@ def generate_fuzzers(owner: str, repo_name: str, artifacts_data: dict):
                                 )
 
                             except Exception as e:
-                                print(f"Error generating fuzzer: {e}")
-                                fuzzer = Fuzzer(
-                                    testPath="",
-                                    name="",
-                                    status=TestStatus.ERROR_GENERATING
-                                )
+                                try:
+                                    print(f"Error generating fuzzer: {e}")
+                                    print("Generating a generic fuzzer instead...")
+                                    
+                                    test_path = generate_generic_fuzzer(
+                                        data=artifact,
+                                        exit_directory=str(test_dir)
+                                    )
+                                    # Remove repo part from path
+                                    full_path = Path(entry_data.get("filePath"))
+                                    relative_path = full_path.relative_to(dest_path)
+                                    artifactPath = relative_path
+
+                                    artifactName = entry_data.get("artifactName") if entry_data.get("artifactName") else entry_data.get("qualifierName")
+                                    artifact_line = entry_data.get("lineNumber")
+                                    fuzzer = Fuzzer(
+                                        testPath=str(test_path),
+                                        name=test_path.stem,
+                                        status=TestStatus.ERROR_GENERATING,
+                                        artifactPath=str(artifactPath),
+                                        artifactName=str(artifactName),
+                                        artifactLine=int(artifact_line)
+                                    )
+                                except Exception as e2:
+                                    print(f"Error generating generic fuzzer: {e2}")
+                                    fuzzer = Fuzzer(
+                                        testPath="",
+                                        name="",
+                                        status=TestStatus.ERROR_GENERATING
+                                    )
                             tests_already_generated[call_path_artifact_key] = fuzzer
                             artifact.fuzzers.add(fuzzer)
                         else:
@@ -271,31 +291,31 @@ def generate_fuzzers(owner: str, repo_name: str, artifacts_data: dict):
 
 def generate_fuzzer(data: dict, exit_directory: str = "."):
     """
-    Genera un fuzzer basado en los datos proporcionados.
+    Generates a fuzzer Java file based on the provided data and saves it to the specified directory.
     
     Args:
-        data (dict): Datos del artefacto para generar el fuzzer
-        exit_directory (str): Directorio donde guardar el fuzzer generado
+        data (dict): artifact data to generate the fuzzer
+        exit_directory (str): Directory to save the generated fuzzer
     """
-    # Obtener la ruta absoluta del directorio de plantillas
-    current_file_dir = Path(__file__).parent  # src/test_generator/
-    templates_dir = current_file_dir.parent.parent / "plantillas"  # src/plantillas/
-    
-    # Verificar que el directorio de plantillas existe
+    # Get the absolute path of the templates directory
+    current_file_dir = Path(__file__).parent
+    templates_dir = current_file_dir.parent.parent / "templates"
+
+    # Check if the templates directory exists
     if not templates_dir.exists():
         raise FileNotFoundError(f"Templates directory not found at: {templates_dir}")
-    
-    # Configurar Jinja2 con la ruta absoluta
+
+    # Configure Jinja2 with the absolute path
     env = Environment(
         loader=FileSystemLoader(str(templates_dir)), 
         trim_blocks=True, 
         lstrip_blocks=True
     )
-    
-    # Procesar los datos
+
+    # Process the data
     standardize_parameters(data.get("parameters", []))
-    
-    # NUEVO: Procesar también los parámetros del constructor
+
+    # Also process constructor parameters
     if "constructorParameters" in data and data["constructorParameters"]:
         for constructor_info in data["constructorParameters"]:
             if "parameters" in constructor_info:
@@ -304,35 +324,117 @@ def generate_fuzzer(data: dict, exit_directory: str = "."):
     data["qualifierType_simple_name"] = data["qualifierType"].split('.')[-1]
     data["instance_name"] = data.get("qualifierName", data["qualifierType_simple_name"]).replace('this.', '').lower()
     
-    # Cargar la plantilla
+    # Load template
     try:
-        plantilla = env.get_template('fuzzer.java.j2')
+        template = env.get_template('fuzzer.java.j2')
     except Exception as e:
         print(f"Error loading template 'fuzzer.java.j2' from {templates_dir}")
         raise e
-    
-    # Generar el código
-    codigo_generado = plantilla.render(data)
 
-    # Crear el nombre del archivo y la ruta de salida
+    # Generate code
+    generated_code = template.render(data)
+
+    # Create the file name and output path
     class_name = data.get("className", data.get("qualifierType_simple_name"))
     artifact_name = data.get("artifactName", "Constructor")
-    clase_fuzzer = f"{class_name}{artifact_name.capitalize()}Fuzzer"
-    
-    # Resolver la ruta de salida
-    exit_path = Path(exit_directory).resolve()
-    ruta_salida = exit_path / f"{clase_fuzzer}.java"
+    fuzzer_class = f"{class_name}{artifact_name.capitalize()}Fuzzer"
 
-    # Crear el directorio si no existe
+    # Resolve the output path
+    exit_path = Path(exit_directory).resolve()
+    fuzzer_path = exit_path / f"{fuzzer_class}.java"
+
+    # Create the directory if it doesn't exist
     if not exit_path.exists():
         exit_path.mkdir(parents=True, exist_ok=True)
-        
-    # Escribir el archivo
-    with open(ruta_salida, "w", encoding="utf-8") as f:
-        f.write(codigo_generado)
+
+    # Write the file
+    with open(fuzzer_path, "w", encoding="utf-8") as f:
+        f.write(generated_code)
+
+    # Format the Java code using Google Java Format
+    format_java_file(fuzzer_path)
+
+    return fuzzer_path
+
+
+
+def generate_generic_fuzzer(data: dict, exit_directory: str = "."):
+    """
+    Generates a generic fuzzer Java file based on the provided data and saves it to the specified directory in case of errors generating.
     
-    # Formatear el código Java usando Google Java Format
-    format_java_file(ruta_salida)
+    Args:
+        data (dict): artifact data to generate the fuzzer
+        exit_directory (str): Directory to save the generated fuzzer
+    """
+    # Since this can be used in two different contexts, it is needed to parse input in case it is an Artifact
+    repo_path = Path(exit_directory).parent.parent
 
-    return ruta_salida
+    
+    if isinstance(data, Artifact):
+        # Remove repo part from path
+        full_path = Path(data.filePath)
+        relative_path = full_path.relative_to(repo_path)
+        
+        artifact_path = relative_path
+        class_name = artifact_path.stem
+        artifact_name = data.name if data.name else "Constructor"
+        artifact_data = {
+            "className": class_name,
+            "filePath": artifact_path,
+            "artifactName": artifact_name,
+            "lineNumber": data.line
+        }
+        data = artifact_data
+    else:
+        full_path = Path(data.filePath)
+        relative_path = full_path.relative_to(repo_path)
+        artifact_path = relative_path
+        data["filePath"] = artifact_path
+        
+        class_name = data.get("className", data.get("qualifierType_simple_name"))
+        artifact_name = data.get("artifactName", "Constructor")
 
+        
+    
+    # Get the absolute path of the templates directory
+    current_file_dir = Path(__file__).parent
+    templates_dir = current_file_dir.parent.parent / "templates"
+
+    # Check if the templates directory exists
+    if not templates_dir.exists():
+        raise FileNotFoundError(f"Templates directory not found at: {templates_dir}")
+    
+    env = Environment(
+        loader=FileSystemLoader(str(templates_dir)), 
+        trim_blocks=True, 
+        lstrip_blocks=True
+    )
+    
+    # Load template
+    try:
+        template = env.get_template('generic-fuzzer.java.j2')
+    except Exception as e:
+        print(f"Error loading template 'generic-fuzzer.java.j2' from {templates_dir}")
+        raise e
+    
+    # Generate code
+    generated_code = template.render(data)
+    
+    fuzzer_class = f"{class_name}{artifact_name.capitalize()}Fuzzer"
+    
+    # Resolve the output path
+    exit_path = Path(exit_directory).resolve()
+    fuzzer_path = exit_path / f"{fuzzer_class}.java"
+
+    # Create the directory if it doesn't exist
+    if not exit_path.exists():
+        exit_path.mkdir(parents=True, exist_ok=True)
+
+    # Write the file
+    with open(fuzzer_path, "w", encoding="utf-8") as f:
+        f.write(generated_code)
+
+    # Format the Java code using Google Java Format
+    format_java_file(fuzzer_path)
+
+    return fuzzer_path
