@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from java_analyzer.spoon_reader import get_artifact_info
-from test_generator.generator import generate_fuzzers
+from test_generator.generator import generate_fuzzers, generate_fuzzer_for_failed_artifacts
 from dotenv import load_dotenv
 import typer
 from vexgen_caller.auth import signup, login
@@ -71,8 +71,6 @@ def run(
     if not resolved_pom_path.exists():
         raise FileNotFoundError(f"Error: POM file not found at {resolved_pom_path}")
 
-    # TODO: quitar luego confidence de aqui
-    confidence = ConfidenceLevel.MEDIUM
     project = create_project(owner, name, pom_path, confidence)
     
     vulnerabilities = None
@@ -96,8 +94,6 @@ def run(
     # Generate artifacts info with Spoon
     artifacts_data = None
     if artifacts_json and artifacts_json != "[]":
-        print(f"Artifacts JSON: {artifacts_json}")
-        
         artifacts_data = get_artifact_info(str(resolved_pom_path), artifacts_json)
     else:
         print("No artifacts found in the VEX file.")
@@ -105,6 +101,7 @@ def run(
     
     if artifacts_data:
         generate_fuzzers(owner, name, artifacts_data)
+        generate_fuzzer_for_failed_artifacts(owner, name)
                
         # Exectute fuzz tests
         build_tests(owner, name)
@@ -173,13 +170,14 @@ def init(
     
 
 if __name__ == "__main__":
-    # app()
-    run(
-        owner="TFG-josrodlop19",
-        name="VulnerableProject1", 
-        pom_path="pom.xml",
-        reload=False
-    )
+    app()
+    # run(
+    #     owner="TFG-josrodlop19",
+    #     name="VulnerableProject2", 
+    #     pom_path="pom.xml",
+    #     reload=False,
+    #     confidence=ConfidenceLevel.MEDIUM
+    # )
     # print_tests_results("TFG-josrodlop19", "VulnerableProject1", True)
     # securechaindev / vex_generation_test
     # TFG-josrodlop19 / VulnerableProject1

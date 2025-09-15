@@ -195,8 +195,6 @@ def artifacts_json(artifacts: dict) -> str:
             "target_line": str(artifact.line),
             "target_name": artifact.name
         })
-        
-    print(artifacts_list)
     
     # Return as JSON to use it on spoon
     return json.dumps(artifacts_list, indent=2)

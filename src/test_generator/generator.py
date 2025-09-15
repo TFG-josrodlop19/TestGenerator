@@ -5,7 +5,7 @@ from jinja2 import Environment, FileSystemLoader
 from utils.file_writer import generate_path_repo
 from vexgen_caller.vex_generator import generate_artifact_key
 from database.models import Artifact, Fuzzer, TestStatus
-from database.operations import save_artifacts_fuzzer
+from database.operations import save_artifacts_fuzzer, find_artifacts_with_no_fuzzers
 
 # El diccionario de tipos no cambia
 TYPE_TO_FUZZ_FUNCTION = {
@@ -40,7 +40,7 @@ TYPE_TO_FUZZ_FUNCTION = {
     "float[]": "dataProvider.consumeFloats(100)",
     "double[]": "dataProvider.consumeDoubles(100)",
     "boolean[]": "dataProvider.consumeBooleans(100)",
-    "java.lang.String[]": "new String[]{dataProvider.consumeString(100), dataProvider.consumeString(100)}",
+    "java.lang.String[]": "new String[]{dataProvider.consumeString(1000), dataProvider.consumeString(1000)}",
     
     # special numbers
     "java.math.BigInteger": "new java.math.BigInteger(dataProvider.consumeString(50))",
@@ -218,7 +218,11 @@ def generate_fuzzers(owner: str, repo_name: str, artifacts_data: dict):
                     for i in range(len(call_path) - 1, -1, -1):
                         # Entry data for the current fuzzer generation
                         entry_data = call_path[i]
-                        call_path_artifact_key = generate_artifact_key(entry_data.get("filePath"), entry_data.get("artifactName"), entry_data.get("lineNumber"))
+                        call_path_artifact_key = generate_artifact_key(
+                            entry_data.get("filePath"), 
+                            entry_data.get("artifactName"), 
+                            entry_data.get("lineNumber")
+                        )
 
                         if call_path_artifact_key not in tests_already_generated:
                             fuzzer = None
@@ -288,7 +292,6 @@ def generate_fuzzers(owner: str, repo_name: str, artifacts_data: dict):
             else:
                 print(f"No valid call paths found for artifact.")
 
-
 def generate_fuzzer(data: dict, exit_directory: str = "."):
     """
     Generates a fuzzer Java file based on the provided data and saves it to the specified directory.
@@ -357,8 +360,58 @@ def generate_fuzzer(data: dict, exit_directory: str = "."):
     return fuzzer_path
 
 
+def generate_fuzzer_for_failed_artifacts(owner: str, repo_name: str):
+    # Generate tests output directory if not exists
+    dest_path = Path(generate_path_repo(owner, repo_name))
+    test_dir = dest_path / "src" / "test" / "java"
+    test_dir.mkdir(parents=True, exist_ok=True)
 
-def generate_generic_fuzzer(data: dict, exit_directory: str = "."):
+    artifacts = find_artifacts_with_no_fuzzers(owner, repo_name)
+
+    tests_already_generated = {}
+    for artifact in artifacts:
+        
+        # Create new artifact instance to avoid sqlalchemy issues
+        new_artifact_instance = Artifact(
+            filePath=artifact.filePath,
+            name=artifact.name,
+            line=artifact.line
+        )
+        call_path_artifact_key = generate_artifact_key(
+                            artifact.filePath, 
+                            artifact.name, 
+                            artifact.line
+                        )
+
+        if call_path_artifact_key not in tests_already_generated:
+            try:
+                test_path = generate_generic_fuzzer(artifact, test_dir)
+                
+                full_path = Path(artifact.filePath)
+                relative_path = full_path.relative_to(dest_path)
+                artifactPath = relative_path
+
+                artifactName = artifact.name
+                artifact_line = artifact.line
+                fuzzer = Fuzzer(
+                    testPath=str(test_path),
+                    name=test_path.stem,
+                    status=TestStatus.ERROR_GENERATING,
+                    artifactPath=str(artifactPath),
+                    artifactName=str(artifactName),
+                    artifactLine=int(artifact_line)
+                )
+                tests_already_generated[call_path_artifact_key] = fuzzer
+            except Exception as e:
+                print(f"Error generating generic fuzzer: {e}")
+        else:
+            fuzzer = tests_already_generated[call_path_artifact_key]
+        
+        new_artifact_instance.fuzzers.add(fuzzer)
+        save_artifacts_fuzzer(owner, repo_name, new_artifact_instance)
+        
+
+def generate_generic_fuzzer(data, exit_directory: str = ".") -> Path:
     """
     Generates a generic fuzzer Java file based on the provided data and saves it to the specified directory in case of errors generating.
     
