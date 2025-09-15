@@ -318,11 +318,11 @@ def get_pretty_artifacts_names(artifacts: list) -> str:
     else:
         for artifact in artifacts:
             if artifact.affected == VulnerabilityStatus.AFFECTED:
-                pretty_artifact_names.append(f"{artifact.name}\n", style="bold red")
+                pretty_artifact_names.append(f"{artifact.name} - {artifact.line}\n", style="bold red")
             elif artifact.affected == VulnerabilityStatus.NOT_AFFECTED:
-                pretty_artifact_names.append(f"{artifact.name}\n", style="bold green")
+                pretty_artifact_names.append(f"{artifact.name} - {artifact.line}\n", style="bold green")
             else:
-                pretty_artifact_names.append(f"{artifact.name}\n", style="dim")
+                pretty_artifact_names.append(f"{artifact.name} - {artifact.line}\n", style="dim")
     return pretty_artifact_names
 
 def get_pretty_fuzzers_names(fuzzers: list) -> str:

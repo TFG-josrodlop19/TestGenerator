@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import spoon.reflect.code.CtAbstractInvocation;
+import spoon.reflect.code.CtConstructorCall;
 import spoon.reflect.code.CtExpression;
 import spoon.reflect.code.CtInvocation;
 import spoon.reflect.declaration.CtConstructor;
@@ -42,16 +43,37 @@ public class OutputDataBuilder {
         data.setNodeType(invocation.getClass().getSimpleName());
         data.setArtifactName(invocation.getExecutable().getSimpleName());
 
-        // Get qualifier type
-        CtExpression<?> target = null;
         if (invocation instanceof CtInvocation) {
-            target = ((CtInvocation<?>) invocation).getTarget();
-        }
-        if (target != null) {
-            CtTypeReference<?> qualifierTypeRef = target.getType();
-            String qualifierType = (qualifierTypeRef != null) ? qualifierTypeRef.getQualifiedName() : "UNRESOLVED_TYPE";
-            data.setQualifierType(qualifierType);
-            data.setQualifierName(target.toString());
+            CtInvocation<?> methodInvocation = (CtInvocation<?>) invocation;
+
+            data.setArtifactName(methodInvocation.getExecutable().getSimpleName());
+
+            CtExpression<?> target = methodInvocation.getTarget();
+            if (target != null) {
+                CtTypeReference<?> qualifierTypeRef = target.getType();
+                String qualifierType = (qualifierTypeRef != null) ? qualifierTypeRef.getQualifiedName()
+                        : "UNRESOLVED_TYPE";
+                data.setQualifierType(qualifierType);
+                data.setQualifierName(target.toString());
+            } else {
+                // If there is no target, it is a local call. EX: myMethod();
+                data.setQualifierType("Local call");
+                data.setQualifierName("Local call");
+            }
+
+            // Get whether the method is static or not
+            boolean isStatic = methodInvocation.getExecutable().isStatic();
+            data.setIsStatic(isStatic);
+
+        } else if (invocation instanceof CtConstructorCall) {
+            CtConstructorCall<?> constructorCall = (CtConstructorCall<?>) invocation;
+
+            data.setArtifactName(constructorCall.getType().getSimpleName());
+
+            data.setQualifierType(constructorCall.getType().getQualifiedName());
+            data.setQualifierName(constructorCall.getType().getSimpleName());
+
+            data.setIsStatic(false);
         } else {
             // If there is no target, it is a local call. EX: myMethod();
             data.setQualifierType("Local call");
