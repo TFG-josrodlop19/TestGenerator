@@ -55,7 +55,6 @@
 
 {# Basic imports #}
 import com.code_intelligence.jazzer.api.FuzzedDataProvider;
-{# import com.code_intelligence.jazzer.api.Jazzer; #}
 import java.io.IOException;
 
 {# Collect all custom types #}
@@ -132,7 +131,7 @@ public class {{ className | default(qualifierType.split('.')[-1]) }}{{ artifactN
                 {% endif %}
             {% endif %}
         } catch (Exception e) {
-            {# Jazzer.reportFindingFromExploit(e); #}
+            // Catch all exceptions to prevent the fuzzer from stopping
         }
     }
 }
