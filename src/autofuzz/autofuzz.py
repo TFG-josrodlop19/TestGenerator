@@ -45,7 +45,8 @@ def build_tests(owner: str, name: str):
             sys.executable,  # Use the current Python interpreter
             "infra/helper.py", 
             "build_fuzzers", 
-            project
+            project,
+            "--clean"
         ],
         cwd=oss_fuzz_root,  # Change working directory
         capture_output=True, 

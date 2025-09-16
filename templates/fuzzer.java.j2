@@ -45,6 +45,7 @@
 
 {# Basic imports #}
 import com.code_intelligence.jazzer.api.FuzzedDataProvider;
+import com.code_intelligence.jazzer.api.Jazzer;
 import {{ qualifierType }};
 
 {# Collect additional imports #}
@@ -67,7 +68,7 @@ import java.io.IOException;
 
 /**
  * Fuzzer generated for class: {{ className }}.
- * Objetivo: {% if artifactName %}método {{ artifactName }}{% else %}constructor{% endif %} en la línea {{ lineNumber }}.
+ * Target: {% if artifactName %} method {{ artifactName }}{% else %}constructor{% endif %} in line {{ lineNumber }}.
  */
 public class {{ className | default(qualifierType_simple_name) }}{{ artifactName | default("Constructor") | capitalize }}Fuzzer {
 
@@ -111,7 +112,7 @@ public class {{ className | default(qualifierType_simple_name) }}{{ artifactName
                 {% endif %}
             {% endif %}
         } catch (Exception e) {
-            // Ignore expected exceptions
+            Jazzer.reportFindingFromExploit(e);
         }
     }
 }
