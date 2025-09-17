@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from utils.file_writer import generate_path_repo
 from utils.classes import TestStatus
-from database.operations import get_created_fuzzers_by_project, update_fuzzer_status, get_scanner_all_data_by_project, get_scanner_data_by_project
+from database.operations import get_created_fuzzers_by_project, update_fuzzer_status, get_last_scanner_all_data_by_project, get_last_scanner_data_by_project, get_scanner_by_id, get_scanner_all_data_by_id, get_scanners_by_project
 from database.models import Fuzzer, ConfidenceLevel, VulnerabilityStatus
 import re
 from rich.console import Console
@@ -180,13 +180,26 @@ def extract_vulnerability_info(output: str) -> dict:
     return None
 
 
-def print_tests_results(owner: str, name: str, get_all: bool = False):
+def print_tests_results(owner: str, name: str, get_all: bool = False, scanner_id: int = None):
+    """
+    Prints a summary of the test results for a given project using rich library.
+    If get_all is True, it retrieves all scanner data, otherwise only the latest.
+    If scanner_id is provided, it retrieves data for that specific scanner, if not, it retrieves the latest scanner.
+    """
+    
     repo_path = generate_path_repo(owner, name)
 
-    if get_all:
-        scanner = get_scanner_all_data_by_project(owner, name)
+    if scanner_id:
+        if get_all:
+            scanner = get_scanner_all_data_by_id(scanner_id)
+        else:
+            scanner = get_scanner_by_id(scanner_id)
     else:
-        scanner = get_scanner_data_by_project(owner, name)
+        if get_all:
+            scanner = get_last_scanner_all_data_by_project(owner, name)
+        else:
+            scanner = get_last_scanner_data_by_project(owner, name)
+    
     
     # Initialize variables to store items
     artifacts = set()
@@ -341,3 +354,37 @@ def get_pretty_fuzzers_names(fuzzers: list) -> str:
             else:
                 pretty_fuzzer_names.append(f"{fuzzer.name}\n", style="dim")
     return pretty_fuzzer_names
+
+
+
+def print_scanners(owner, name, scanner_list):
+    """
+    Prints the list of scanners for a given project.
+    Input: owner of the repository, name of the repository and list of enumerate scanners (enumerate(scanner))
+    """
+    
+    console = Console()
+    
+    # Header
+    title = f"Scanner history for: {owner}/{name}"
+    console.print(Panel(Align.center(title), border_style="blue"))
+    
+    # Table with vulnerabilities and their status
+    scanners = Table(
+        title="Scanners found",
+        show_header=True,
+        header_style="bold magenta",
+        show_lines=True
+    )
+    scanners.add_column("Scanner")
+    scanners.add_column("Date")
+    scanners.add_column("Confidence level")
+
+    for i, scanner in scanner_list:
+        scanners.add_row(
+            str(i) ,
+            scanner.date.strftime("%Y-%m-%d %H:%M:%S"),
+            str(scanner.confidence)
+        )
+
+    console.print(scanners)
