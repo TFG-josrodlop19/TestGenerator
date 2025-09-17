@@ -1,4 +1,4 @@
-import os
+import shutil
 from pathlib import Path
 from java_analyzer.spoon_reader import get_artifact_info
 from test_generator.generator import generate_fuzzers, generate_fuzzer_for_failed_artifacts
@@ -57,7 +57,7 @@ def run(
     )
     ):
     """
-    Generates vex and automatically runs tests.`
+    Generates vex and automatically runs tests.
     """
     dest_path = Path(generate_path_repo(owner, name))
     clone_repo(owner, name, dest_path)
@@ -117,6 +117,10 @@ def scanners(
         limit : int = typer.Option(10, "--limit", "-l", help="Number of recent scanners to display (default: 10, -1 to list all)."),
         all : bool = typer.Option(False, "--all", "-a", help="Show all data for each scanner.")
     ):
+    """
+    Show the scanners for a given project and allows to view test results for a selected scanner.
+    """
+    
     scanners_list= get_scanners_by_project(owner, name, limit)
 
     if not scanners_list or len(scanners_list) == 0:
@@ -151,50 +155,34 @@ def repair_tests(
     pass
 
 @app.command()
-def init(
-    force : bool = typer.Option(False, "--force", "-f", help="Force re-initialization even if the structure already exists.")
-    ):
+def init():
     """
     Initializes the project structure.
     """
-    # Obtener el directorio actual desde donde se invoca el comando
-    file_paths = Path.cwd()
-    
+    # Get current working directory
+    current_dir = Path.cwd()
 
+    templates_dir = PROJECT_ROOT / "templates"
+    
+    if not templates_dir.exists():
+        raise FileNotFoundError(f"Error: Templates directory not found at {templates_dir}")
     
     try:
-        # Crear el directorio .autofuzz
-        file_paths.mkdir(exist_ok=force)
-        print(f"Successfully created .autofuzz directory at {file_paths}")
-
-        # Crear build.sh
-        build_sh_content = """#!/bin/bash
-            # Build script for OSS-Fuzz fuzzing
-            # Add your build commands here
-            """
-        (file_paths / "build.sh").write_text(build_sh_content)
-
-        # Crear Dockerfile
-        dockerfile_content = """# Dockerfile for OSS-Fuzz
-            # Add your Docker configuration here
-
-            """
-        (file_paths / "Dockerfile").write_text(dockerfile_content)
-
-        # Crear project.yaml
-        project_yaml_content = """# Project configuration for OSS-Fuzz
-            # Add your project configuration here
-
-            """
-        (file_paths / "project.yaml").write_text(project_yaml_content)
-
-        print("Created OSS-Fuzz configuration files:")
-        print(f"  - {file_paths / 'build.sh'}")
-        print(f"  - {file_paths / 'Dockerfile'}")
-        print(f"  - {file_paths / 'project.yaml'}")
-        
+        files_to_copy = ["build.sh", "Dockerfile", "project.yaml"]
+        for file in files_to_copy:
+            template_path = templates_dir / file
+            dest_path = current_dir / file
+            if not template_path.exists():
+                raise FileNotFoundError(f"Error: Template file {file} not found in {templates_dir}")
+            if dest_path.exists():
+                print(f"File {file} already exists at {dest_path}. Creating copy-{file} instead.")
+                dest_path = current_dir / f"copy-{file}"
+            shutil.copy2(template_path, dest_path)
+            if dest_path.name.endswith("build.sh"):
+                dest_path.chmod(0o755)
+        print("Project structure initialized successfully.")
     except Exception as e:
-        print(f"Error creating .autofuzz directory: {e}")
+        print(f"Error initializing project structure: {e}")
         raise typer.Exit(1)
     
 
