@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 from utils.file_writer import generate_path_repo
 from utils.classes import TestStatus
-from database.operations import get_created_fuzzers_by_project, update_fuzzer_status, get_last_scanner_all_data_by_project, get_last_scanner_data_by_project, get_scanner_by_id, get_scanner_all_data_by_id, get_scanners_by_project
+from database.operations import get_created_fuzzers_by_project, update_fuzzer_status, get_last_scanner_all_data_by_project, get_last_scanner_data_by_project, get_scanner_by_id, get_scanner_all_data_by_id
 from database.models import Fuzzer, ConfidenceLevel, VulnerabilityStatus
 import re
 from rich.console import Console
@@ -388,3 +388,42 @@ def print_scanners(owner, name, scanner_list):
         )
 
     console.print(scanners)
+
+
+def print_fuzzers_with_errors(owner: str, name: str, fuzzers: list) -> None:
+    """Prints the list of fuzzers with errors for a given project.
+
+    Keyword arguments:
+    owner -- Owner of the repository
+    name -- Name of the repository
+    fuzzers -- List of enumerated (enumerate(list)) fuzzers with errors
+    """
+    
+    console = Console()
+    
+    # Header
+    title = f"Fuzzers with errors for: {owner}/{name}"
+    console.print(Panel(Align.center(title), border_style="blue"))
+    
+    # Table with vulnerabilities and their status
+    fuzzers_table = Table(
+        title="Fuzzers Info",
+        show_header=True,
+        header_style="bold magenta",
+        show_lines=True
+    )
+    fuzzers_table.add_column("Fuzzer")
+    fuzzers_table.add_column("Fuzzer name")
+    fuzzers_table.add_column("Line")
+    fuzzers_table.add_column("File Path")
+    fuzzers_table.add_column("Status")
+    
+    for i, fuzzer in fuzzers:
+        fuzzers_table.add_row(
+            str(i),
+            fuzzer.artifactName,
+            str(fuzzer.artifactLine),
+            fuzzer.artifactPath,
+            get_pretty_test_status(fuzzer.status)
+        )
+    console.print(fuzzers_table)

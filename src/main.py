@@ -8,10 +8,11 @@ from vexgen_caller.auth import signup, login
 from vexgen_caller.vex_generator import generate_vex, get_tix_data
 from utils.file_writer import resolve_path, generate_path_repo
 from utils.git_utils import clone_repo
-from autofuzz.autofuzz import build_tests, execute_tests, print_tests_results, print_scanners
-from database.models import ConfidenceLevel
+from autofuzz.autofuzz import build_tests, execute_tests, print_tests_results, print_scanners, print_fuzzers_with_errors
+from database.models import ConfidenceLevel, TestStatus
 from database.setup import setup_database
-from database.operations import create_project, create_vulnerabilities_artifacts, update_states_after_execution, get_scanners_by_project
+from database.operations import create_project, create_vulnerabilities_artifacts, update_fuzzer_status, update_states_after_execution, get_scanners_by_project, find_fuzzers_with_errors
+import subprocess
 
 load_dotenv()
 
@@ -111,6 +112,25 @@ def run(
         print_tests_results(owner, name)
 
 @app.command()
+def rerun(
+    owner : str = typer.Argument(..., help="Owner of the GitHub repository where the sbom.json file is stored."),
+    name : str = typer.Argument(..., help="Name of the GitHub repository where the sbom.json file is stored."),
+    confidence: ConfidenceLevel = typer.Option(
+        ConfidenceLevel.MEDIUM, 
+        "--confidence", 
+        "-c", 
+        help="Confidence level for test execution. Low: 2 min, Medium: 10 min, High: 1 hour, Absolute: unlimited."
+    )
+    ):
+    """
+    Re-builds and runs the tests for a given project (last scanner).
+    """
+    build_tests(owner, name)
+    execute_tests(owner, name, confidence)
+    update_states_after_execution(owner, name)
+    print_tests_results(owner, name)
+
+@app.command()
 def scanners(
         owner : str = typer.Argument(..., help="Owner of the GitHub repository where the sbom.json file is stored."),
         name : str = typer.Argument(..., help="Name of the GitHub repository where the sbom.json file is stored."),
@@ -132,7 +152,7 @@ def scanners(
     # Ask user to select a scanner
     try:
         while True:
-            selection = typer.prompt(f"Enter the number of the scanner you want to view (0-{len(scanners_list)-1})")
+            selection = typer.prompt(f"Enter the number of the scanner you want to view (0 - {len(scanners_list)-1})")
             selection = int(selection)
             if not (0 <= selection < len(scanners_list)):
                 print("Invalid selection. Please enter a valid number.")
@@ -145,14 +165,51 @@ def scanners(
         print(f"Error: {e}")
         return
 
-def repair_tests(
+@app.command()
+def repair(
     owner : str = typer.Argument(..., help="Owner of the GitHub repository where the sbom.json file is stored."),
     name : str = typer.Argument(..., help="Name of the GitHub repository where the sbom.json file is stored."),
 ):
     """
     Repairs the generated tests.
     """
-    pass
+    fuzzers_list = find_fuzzers_with_errors(owner, name) 
+    if not fuzzers_list or len(fuzzers_list) == 0:
+        print("No fuzzers with errors found for this project.")
+        return
+    fuzzers = enumerate(fuzzers_list)
+    print_fuzzers_with_errors(owner, name, fuzzers)
+    
+     # Ask user to select a fuzzer to repair
+    try:
+        while True:
+            selection = typer.prompt(f"Enter the number of the fuzzer you want to repair (0 - {len(fuzzers_list)-1})")
+            selection = int(selection)
+            if not (0 <= selection < len(fuzzers_list)):
+                print("Invalid selection. Please enter a valid number.")
+            else:
+                break
+        fuzzer = fuzzers_list[selection]
+        fuzzer_path = Path(fuzzer.testPath)
+
+        if not fuzzer_path.exists():
+            raise FileNotFoundError("Fuzzer file not found.")
+        
+        start_timestamp = fuzzer_path.stat().st_mtime
+        res = subprocess.run(['vim', str(fuzzer_path)], capture_output=False)
+        
+        if res.returncode == 0:
+            new_timestamp = fuzzer_path.stat().st_mtime
+            if new_timestamp > start_timestamp:
+                update_fuzzer_status(fuzzer.id, TestStatus.CREATED)
+                print("Fuzzer modified, status updated")
+            else:
+                print("Fuzzer not modified, status not updated.")
+        else:
+            print("Vim exited with an error, status not updated.")   
+    except Exception as e:
+        print(f"Error: {e}")
+        return
 
 @app.command()
 def init():
