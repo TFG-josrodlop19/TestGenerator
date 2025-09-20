@@ -278,7 +278,7 @@ def print_tests_results(owner: str, name: str, get_all: bool = False, scanner_id
         show_lines=True
     )
     
-    fuzzers_table.add_column("Fuzzer")
+    fuzzers_table.add_column("Artifact tested")
     fuzzers_table.add_column("Line")
     fuzzers_table.add_column("File Path")
     fuzzers_table.add_column("Status")
