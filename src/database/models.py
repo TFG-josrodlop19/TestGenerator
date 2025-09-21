@@ -38,13 +38,6 @@ class TestStatus(enum.Enum):
     NOT_VULNERABLE = "Not vulnerable"
 
 # Association tables
-vulnerability_cwe = Table(
-    "vulnerability_cwe",
-    Base.metadata,
-    Column("vulnerability_id", ForeignKey("vulnerability.id"), primary_key=True),
-    Column("cwe_id",ForeignKey("cwe.id"), primary_key=True),
-)
-
 vulnerability_artifact = Table(
     "vulnerability_artifact",
     Base.metadata,
@@ -89,13 +82,6 @@ class Scanner(Base):
     vulnerabilities: Mapped[list["Vulnerability"]] = relationship()
 
 
-class CWE(Base):
-    __tablename__ = "cwe"
-    #PK
-    id : Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-
-    #Attributes
-    name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
 
 class Vulnerability(Base):
     __tablename__ = "vulnerability"
@@ -110,7 +96,6 @@ class Vulnerability(Base):
     status : Mapped[VulnerabilityStatus] = mapped_column(Enum(VulnerabilityStatus), default=VulnerabilityStatus.UNKNOWN)
 
     #FK
-    cwes: Mapped[list["CWE"]] = relationship(secondary=vulnerability_cwe)
     scanner_id: Mapped[int] = mapped_column(ForeignKey("scanner.id"))
     artifacts: Mapped[set["Artifact"]] = relationship(secondary=vulnerability_artifact, back_populates="vulnerabilities") 
     

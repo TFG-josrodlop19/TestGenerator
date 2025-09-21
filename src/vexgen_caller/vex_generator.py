@@ -4,7 +4,7 @@ import json
 import zipfile
 from utils.file_writer import make_valid_file_path as sanitize_path, generate_path_repo
 from utils.request_helper import authenticated_request
-from database.models import Artifact, Vulnerability, CWE
+from database.models import Artifact, Vulnerability
 import shutil
 from pathlib import Path
 
@@ -116,11 +116,6 @@ def get_tix_data(owner:str, name:str) -> (tuple[list[Vulnerability], str]):
                 cvss = vulnerability_data.get("cvss")
                 vulnerability.impact = cvss.get("vuln_impact", 0.0)
                 vulnerability.attackVector = cvss.get("attack_vector", "UNKNOWN")
-                cwes = vulnerability_data.get("cwes", [])
-                for cwe in cwes:
-                    if cwe:
-                        cwe_obj = CWE(name=cwe.get("name"))
-                        vulnerability.cwes.append(cwe_obj)
                 
             for file in reachable_code:
                 

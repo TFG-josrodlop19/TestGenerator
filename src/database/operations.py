@@ -61,20 +61,7 @@ def create_vulnerabilities_artifacts(project_id: int, vulnerabilities: list[Vuln
         if not last_scanner:
             raise ValueError("No scanner found for the given project.")
         scanner_id = last_scanner.id
-        for vulnerability in vulnerabilities:
-            if vulnerability.cwes and len(vulnerability.cwes) > 0:
-                stored_cwes = []
-                for cwe in vulnerability.cwes:
-                    existing_cwe = session.query(CWE).filter(CWE.name == cwe.name).first()
-                    if existing_cwe:
-                        stored_cwes.append(existing_cwe)
-                    else:
-                        new_cwe = CWE(name=cwe.name)
-                        session.add(new_cwe)
-                        session.flush()
-                        stored_cwes.append(new_cwe)
-                vulnerability.cwes = stored_cwes
-            
+        for vulnerability in vulnerabilities:            
             vulnerability.scanner_id = scanner_id
             session.add(vulnerability)
             for artifact in vulnerability.artifacts:
@@ -359,8 +346,7 @@ def get_last_scanner_all_data_by_project(owner: str, name: str):
             raise ValueError("Project not found.")
 
         last_scanner = session.query(Scanner).options(
-            joinedload(Scanner.vulnerabilities).joinedload(Vulnerability.artifacts).joinedload(Artifact.fuzzers),
-            joinedload(Scanner.vulnerabilities).joinedload(Vulnerability.cwes)
+            joinedload(Scanner.vulnerabilities).joinedload(Vulnerability.artifacts).joinedload(Artifact.fuzzers)
         ).filter(
             Scanner.project_id == project.id
         ).order_by(Scanner.date.desc()).first()
@@ -386,7 +372,7 @@ def get_last_scanner_data_by_project(owner: str, name: str):
             )).joinedload(Artifact.fuzzers),
             joinedload(Scanner.vulnerabilities.and_(
                 Vulnerability.status != VulnerabilityStatus.UNKNOWN
-            )).joinedload(Vulnerability.cwes)
+            ))
         ).filter(
             Scanner.project_id == project.id
         ).order_by(Scanner.date.desc()).first()
@@ -404,7 +390,7 @@ def get_scanner_by_id(scanner_id: int):
             )).joinedload(Artifact.fuzzers),
             joinedload(Scanner.vulnerabilities.and_(
                 Vulnerability.status != VulnerabilityStatus.UNKNOWN
-            )).joinedload(Vulnerability.cwes)
+            ))
         ).filter(
             Scanner.id == scanner_id
         ).first()
@@ -417,7 +403,7 @@ def get_scanner_all_data_by_id(scanner_id: int):
     with get_session() as session:
         scanner = session.query(Scanner).options(
             joinedload(Scanner.vulnerabilities).joinedload(Vulnerability.artifacts).joinedload(Artifact.fuzzers),
-            joinedload(Scanner.vulnerabilities).joinedload(Vulnerability.cwes)
+            joinedload(Scanner.vulnerabilities)
         ).filter(
             Scanner.id == scanner_id
         ).first()
