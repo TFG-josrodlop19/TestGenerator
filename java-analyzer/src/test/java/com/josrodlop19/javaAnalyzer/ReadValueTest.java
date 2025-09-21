@@ -18,15 +18,12 @@ public class ReadValueTest {
     
     @BeforeAll
     public static void setup() {
-        // Obtener la ruta absoluta al proyecto desde el directorio de trabajo actual
+        // Get absolute paths
         String projectRoot = System.getProperty("user.dir");
         String parentDir = new java.io.File(projectRoot).getParent();
         
         String pomPath = parentDir + "/vulnerableCodeExamples/VulnerableProject1/pom.xml";
         String javaFilePath = parentDir + "/vulnerableCodeExamples/VulnerableProject1/src/main/java/com/example/JsonProcessor.java";
-        
-        System.out.println("POM Path: " + pomPath);
-        System.out.println("Java File Path: " + javaFilePath);
         
         CodeAnalyzer analyzer = new CodeAnalyzer(pomPath);
         analyzer.extractAST();
@@ -36,7 +33,6 @@ public class ReadValueTest {
         analyzer.processCode();
         artifactData = analyzer.getArtifactData();
         allCallPaths = analyzer.getAllCallPaths();
-        System.out.println(analyzer.getCompleteDataAsString());
     }
 
 
