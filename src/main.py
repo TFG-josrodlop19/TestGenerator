@@ -245,6 +245,12 @@ def init():
 
 if __name__ == "__main__":
     app()
+    # scanners(
+    #     owner="TFG-josrodlop19",
+    #     name="VulnerableProject4",
+    #     limit=10,
+    #     all=False
+    #     )
     # run(
     #     owner="TFG-josrodlop19",
     #     name="VulnerableProject3", 

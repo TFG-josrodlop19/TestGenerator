@@ -278,6 +278,7 @@ def print_tests_results(owner: str, name: str, get_all: bool = False, scanner_id
         show_lines=True
     )
     
+    fuzzers_table.add_column("Fuzzer name")
     fuzzers_table.add_column("Artifact tested")
     fuzzers_table.add_column("Line")
     fuzzers_table.add_column("File Path")
@@ -287,6 +288,7 @@ def print_tests_results(owner: str, name: str, get_all: bool = False, scanner_id
     
     for fuzzer in fuzzers:
         fuzzers_table.add_row(
+            fuzzer.name,
             fuzzer.artifactName,
             str(fuzzer.artifactLine),
             fuzzer.artifactPath,
@@ -322,7 +324,7 @@ def get_pretty_test_status(status: TestStatus) -> str:
     elif status in [TestStatus.ERROR_BUILDING, TestStatus.ERROR_EXECUTING, TestStatus.ERROR_GENERATING]:
         pretty_status = Text(f"{status}", style="yellow")
     else:
-        pretty_status = Text("UNKNOWN", style="dim")
+        pretty_status = Text("Created", style="bold blue")
     return pretty_status
 
 def get_pretty_artifacts_names(artifacts: list) -> str:
