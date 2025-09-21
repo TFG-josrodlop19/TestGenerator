@@ -4,7 +4,7 @@ import requests
 
 
 def signup(email:str, password:str):
-    url = os.getenv("VEXGEN_URL") + "/auth/signup"
+    url = os.getenv("VEXGEN_URL") + "auth/signup"
     if not email or not password:
         raise ValueError("Email and password must be provided for signup.")
     data = {"email": email, "password": password}
@@ -18,7 +18,7 @@ def signup(email:str, password:str):
         print(f"Signup failed: {str(e)}")
         
 def login(email:str, password:str):
-    url = os.getenv("VEXGEN_URL") + "/auth/login"
+    url = os.getenv("VEXGEN_URL") + "auth/login"
     if not email or not password:
         raise ValueError("Email and password must be provided for login.")
     data = {"email": email, "password": password}
