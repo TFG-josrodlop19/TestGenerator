@@ -20,3 +20,9 @@ def test_login():
         assert token is not None
         assert refresh_token is not None
     
+    
+def test_login_wrong_user(capsys):
+    login("no_test@example.com", "wrong_password")
+    captured = capsys.readouterr()
+    assert "validation_error" in captured.out
+    

@@ -244,7 +244,7 @@ def init():
     
 
 if __name__ == "__main__":
-    app()
+    # app()
     # scanners(
     #     owner="TFG-josrodlop19",
     #     name="VulnerableProject4",
@@ -261,3 +261,4 @@ if __name__ == "__main__":
     # print_tests_results("TFG-josrodlop19", "VulnerableProject1", True)
     # securechaindev / vex_generation_test
     # TFG-josrodlop19 / VulnerableProject1
+    generate_vex("ExampleOwner", "NonExistentRepo")
