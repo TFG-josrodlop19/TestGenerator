@@ -211,20 +211,3 @@ def init():
 
 if __name__ == "__main__":
     app()
-    # scanners(
-    #     owner="TFG-josrodlop19",
-    #     name="VulnerableProject4",
-    #     limit=10,
-    #     all=False
-    #     )
-    # run(
-    #     owner="TFG-josrodlop19",
-    #     name="VulnerableProject3", 
-    #     pom_path="pom.xml",
-    #     reload=False,
-    #     confidence=ConfidenceLevel.MEDIUM
-    # )
-    # print_tests_results("TFG-josrodlop19", "VulnerableProject1", True)
-    # securechaindev / vex_generation_test
-    # TFG-josrodlop19 / VulnerableProject1
-    # generate_vex("ExampleOwner", "NonExistentRepo")
