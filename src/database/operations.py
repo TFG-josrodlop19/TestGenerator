@@ -3,13 +3,25 @@ from database.models import *
 from sqlalchemy.orm import joinedload
 
 
-def find_project(owner: str, name: str):
+def find_last_scanner_confidence(owner: str, name: str):
     """Buscar un proyecto específico"""
     with get_session() as session:
-        return session.query(Project).filter(
+        project = session.query(Project).filter(
             Project.owner == owner,
             Project.name == name
         ).first()
+        
+        if not project:
+            raise ValueError("Project not found.")
+        
+        last_scanner = session.query(Scanner).filter(
+            Scanner.project_id == project.id
+        ).order_by(Scanner.date.desc()).first()
+        
+        if last_scanner:
+            return last_scanner.confidence
+        else:
+            raise ValueError("No scanner found for the given project.")
 
 def create_project(owner: str, name: str, pom_path: str, confidence: ConfidenceLevel) -> Project:
     """

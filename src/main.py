@@ -1,17 +1,12 @@
 import shutil
 from pathlib import Path
-from java_analyzer.spoon_reader import get_artifact_info
-from test_generator.generator import generate_fuzzers, generate_fuzzer_for_failed_artifacts
 from dotenv import load_dotenv
 import typer
 from vexgen_caller.auth import signup, login
-from vexgen_caller.vex_generator import generate_vex, get_tix_data
-from utils.file_writer import resolve_path, generate_path_repo
-from utils.git_utils import clone_repo
-from autofuzz.autofuzz import build_tests, execute_tests, print_tests_results, print_scanners, print_fuzzers_with_errors
+from autofuzz.autofuzz import generate_fuzz_tests, build_tests, execute_tests, print_tests_results, print_scanners, print_fuzzers_with_errors
 from database.models import ConfidenceLevel, TestStatus
 from database.setup import setup_database
-from database.operations import create_project, create_vulnerabilities_artifacts, update_fuzzer_status, update_states_after_execution, get_scanners_by_project, find_fuzzers_with_errors
+from database.operations import find_last_scanner_confidence, update_fuzzer_status, update_states_after_execution, get_scanners_by_project, find_fuzzers_with_errors
 import subprocess
 
 load_dotenv()
@@ -49,7 +44,7 @@ def run(
     owner : str = typer.Argument(..., help="Owner of the GitHub repository where the sbom.json file is stored."),
     name : str = typer.Argument(..., help="Name of the GitHub repository where the sbom.json file is stored."),
     pom_path: str = typer.Argument(..., help="Path to the pom.xml file of the Maven project."),
-    reload: bool = typer.Option(False, "--reload", "-r", help="Force re-generation of the VEX file even if it already exists."),
+    reload: bool = typer.Option(True, "--no-reload", "-n", help="Force re-generation of the VEX file even if it already exists."),
     confidence: ConfidenceLevel = typer.Option(
         ConfidenceLevel.MEDIUM, 
         "--confidence", 
@@ -60,61 +55,20 @@ def run(
     """
     Generates vex and automatically runs tests.
     """
-    dest_path = Path(generate_path_repo(owner, name))
-    clone_repo(owner, name, dest_path)
-    
-    print(f"Cloned repository to: {dest_path}")
-
-    resolved_pom_path = resolve_path(pom_path, dest_path)
-
-        
-    # Verificar que los archivos existen
-    if not resolved_pom_path.exists():
-        raise FileNotFoundError(f"Error: POM file not found at {resolved_pom_path}")
-
-    project = create_project(owner, name, pom_path, confidence)
-    
-    vulnerabilities = None
-    if not reload:
-        try:
-            vulnerabilities, artifacts_json = get_tix_data(owner, name)
-            print(f"Using existing TIX file")
-        except FileNotFoundError:
-            print(f"TIX file not found, generating a new one...")
-            generate_vex(owner, name)
-            vulnerabilities, artifacts_json = get_tix_data(owner, name)
-    else:
-        generate_vex(owner, name)
-        vulnerabilities, artifacts_json = get_tix_data(owner, name)
-
-    if not vulnerabilities or len(vulnerabilities) == 0:
-        print("No vulnerabilities found in the TIX file.")
-        return
-
-    create_vulnerabilities_artifacts(project.id, vulnerabilities)
-    
-    # Generate artifacts info with Spoon
-    artifacts_data = None
-    if artifacts_json and artifacts_json != "[]":
-        artifacts_data = get_artifact_info(str(resolved_pom_path), artifacts_json)
-    else:
-        print("No artifacts found in the VEX file.")
-        return
-    
-    if artifacts_data:
-        generate_fuzzers(owner, name, artifacts_data)
-        generate_fuzzer_for_failed_artifacts(owner, name)
-               
-        # Exectute fuzz tests
+    if generate_fuzz_tests(owner, name, pom_path, confidence, reload):
+        # Execute fuzz tests
         build_tests(owner, name)
         execute_tests(owner, name, confidence)
         update_states_after_execution(owner, name)
         print_tests_results(owner, name)
-
+        
 @app.command()
-def rerun(
+def generate(
+    
     owner : str = typer.Argument(..., help="Owner of the GitHub repository where the sbom.json file is stored."),
     name : str = typer.Argument(..., help="Name of the GitHub repository where the sbom.json file is stored."),
+    pom_path: str = typer.Argument(..., help="Path to the pom.xml file of the Maven project."),
+    reload: bool = typer.Option(True, "--reload", "-r", help="Force re-generation of the VEX file even if it already exists."),
     confidence: ConfidenceLevel = typer.Option(
         ConfidenceLevel.MEDIUM, 
         "--confidence", 
@@ -123,8 +77,20 @@ def rerun(
     )
     ):
     """
+    Generates the VEX file and the tests for a given project.
+    """
+    generate_fuzz_tests(owner, name, pom_path, confidence, reload)
+    
+    
+@app.command()
+def runtests(
+    owner : str = typer.Argument(..., help="Owner of the GitHub repository where the sbom.json file is stored."),
+    name : str = typer.Argument(..., help="Name of the GitHub repository where the sbom.json file is stored.")
+    ):
+    """
     Re-builds and runs the tests for a given project (last scanner).
     """
+    confidence = find_last_scanner_confidence(owner, name)
     build_tests(owner, name)
     execute_tests(owner, name, confidence)
     update_states_after_execution(owner, name)
@@ -244,7 +210,7 @@ def init():
     
 
 if __name__ == "__main__":
-    # app()
+    app()
     # scanners(
     #     owner="TFG-josrodlop19",
     #     name="VulnerableProject4",
@@ -261,4 +227,4 @@ if __name__ == "__main__":
     # print_tests_results("TFG-josrodlop19", "VulnerableProject1", True)
     # securechaindev / vex_generation_test
     # TFG-josrodlop19 / VulnerableProject1
-    generate_vex("ExampleOwner", "NonExistentRepo")
+    # generate_vex("ExampleOwner", "NonExistentRepo")
