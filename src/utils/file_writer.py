@@ -3,7 +3,7 @@ import json
 from unicodedata import normalize
 import string
 from pathlib import Path
-from utils.classes import TestStatus
+from database.models import TestStatus
 
 def write_token_to_file(token: str, refresh_token: str, user_id: str):
     try:
@@ -162,45 +162,3 @@ def write_test_info_to_json(owner:str, name:str, info:dict):
     
     with open(file_path, "w") as f:
         json.dump(info, f, indent=4)
-
-
-def update_test_status(owner: str, name: str, artifact_key: str, test_path: str, new_status: TestStatus):
-    try:
-        current_info = read_test_info_from_json(owner, name)
-        
-        if artifact_key in current_info:
-            tests = current_info[artifact_key].get("tests", [])
-            updated = False
-            
-            # Buscar y actualizar el test por su test_path
-            for i, call_stack in enumerate(tests):
-                if call_stack != []:
-                    for j, test in enumerate(call_stack):
-                        if test and test.get("test_path") == test_path:
-                            current_info[artifact_key]["tests"][i][j]["test_status"] = new_status
-                            updated = True
-                            break
-                if updated:
-                    break
-            
-            if updated:
-                write_test_info_to_json(owner, name, current_info)
-                print(f"Updated test status for {test_path}: {new_status}")
-            else:
-                print(f"Test not found: {test_path}")
-        else:
-            print(f"Artifact not found: {artifact_key}")
-            
-    except Exception as e:
-        print(f"Error updating test status: {e}")
-        raise
-
-
-def read_test_info_from_json(owner:str, name:str) -> dict:
-    info_path = generate_test_info_path(owner, name)
-    info_path = os.path.join(info_path, "tests_info.json")
-    if not os.path.exists(info_path):
-        raise FileNotFoundError(f"Info file does not exist: {info_path}")
-    with open(info_path, 'r') as f:
-        info = json.load(f)
-    return info    

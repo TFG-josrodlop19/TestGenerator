@@ -7,9 +7,8 @@ from pathlib import Path
 from java_analyzer.spoon_reader import get_artifact_info
 from utils.file_writer import generate_path_repo, resolve_path
 from utils.git_utils import clone_repo
-from utils.classes import TestStatus
 from database.operations import create_project, get_created_fuzzers_by_project, create_vulnerabilities_artifacts, update_fuzzer_status, get_last_scanner_all_data_by_project, get_last_scanner_data_by_project, get_scanner_by_id, get_scanner_all_data_by_id
-from database.models import Fuzzer, ConfidenceLevel, VulnerabilityStatus
+from database.models import Fuzzer, ConfidenceLevel, VulnerabilityStatus, TestStatus
 from vexgen_caller.vex_generator import generate_vex, get_tix_data
 from test_generator.generator import generate_fuzzers, generate_fuzzer_for_failed_artifacts
 import re
