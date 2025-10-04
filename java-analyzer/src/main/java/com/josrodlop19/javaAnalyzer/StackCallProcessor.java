@@ -53,16 +53,16 @@ public class StackCallProcessor {
             return;
         }
 
-        // Recopilar todos los métodos e invocaciones del AST
+        // Save all methods and their invocations in the AST
         collectMethodsAndInvocations();
 
-        // Construir el árbol de llamadas con control de ciclos por path
+        // Build the call tree with cycle control by path
         ArtifactData callTree = buildCallTree(this.targetInvocation, new ArrayList<>());
 
-        // Agregar el árbol de llamadas a artifactData
+        // Add the call tree to artifactData
         this.setCallTree(callTree);
 
-        // También generar todas las rutas posibles como lista
+        // Also generate all possible paths as a list
         List<List<Map<String, Object>>> allPaths = new ArrayList<>();
         extractAllPaths(callTree, new ArrayList<>(), allPaths);
         this.setAllCallPaths(allPaths);
@@ -114,7 +114,7 @@ public class StackCallProcessor {
     private ArtifactData buildCallTree(CtAbstractInvocation<?> currentInvocation, List<String> currentPath) {
         ArtifactData treeNode = new ArtifactData();
 
-        // Obtener el método que contiene la invocación actual
+        // Get the parent executable (method or constructor) of the current invocation
         CtExecutable<?> currentMethod = currentInvocation.getParent(CtExecutable.class);
 
         if (currentMethod == null) {
@@ -125,18 +125,18 @@ public class StackCallProcessor {
         String currentMethodSignature = createSignature(currentMethod);
         boolean isCyclic = currentPath.contains(currentMethodSignature);
 
-        // Crear información del nodo usando las funciones normales
+        // Create node information using normal functions
         if (currentMethod instanceof CtMethod<?>) {
             treeNode = OutputDataBuilder.createMethodTreeNode((CtMethod<?>) currentMethod);
         } else if (currentMethod instanceof CtConstructor<?>) {
             treeNode = OutputDataBuilder.createConstructorTreeNode((CtConstructor<?>) currentMethod);
         }
 
-        // Si es cíclico, modificar el nodo DESPUÉS de crearlo
+        // If it's cyclic, modify the node AFTER creating it
         if (isCyclic) {
             treeNode.setNodeType("CyclicCall");
 
-            // Modificar el nombre del artefacto para indicar ciclo
+            // Modify the artifact name to indicate cycle
             String originalName = treeNode.getArtifactName();
             if (originalName != null) {
                 treeNode.setArtifactName(originalName + " [CYCLE DETECTED]");
@@ -144,14 +144,14 @@ public class StackCallProcessor {
                 treeNode.setArtifactName("<init> [CYCLE DETECTED]");
             }
 
-            // No buscar callers para cortar la recursión
+            // No search further to avoid infinite loops
             treeNode.setCallers(new ArrayList<>());
             Boolean usesTargetFields = checkIfMethodUsesItsParameters(currentMethod);
             treeNode.setUsesParameters(usesTargetFields);
             return treeNode;
         }
 
-        // Si no es cíclico, continuar normalmente
+        // If not cyclic, continue building the tree
         List<String> newPath = new ArrayList<>(currentPath);
         newPath.add(currentMethodSignature);
 
@@ -166,14 +166,14 @@ public class StackCallProcessor {
     private List<ArtifactData> findAllCallers(CtExecutable<?> targetMethod, List<String> currentPath) {
         List<ArtifactData> callers = new ArrayList<>();
 
-        // Buscar en todas las invocaciones de todos los métodos
+        // Search all invocations of all methods
         for (Map.Entry<String, List<CtAbstractInvocation<?>>> entry : this.methodInvocations.entrySet()) {
             List<CtAbstractInvocation<?>> invocations = entry.getValue();
 
             for (CtAbstractInvocation<?> invocation : invocations) {
                 if (isCallingTargetExecutable(invocation, targetMethod)) {
-                    // Encontramos un caller, agregar al árbol recursivamente
-                    // Cada invocación se procesa independientemente con su propio path
+                    // Found a caller, add to the tree recursively
+                    // Each invocation is processed independently with its own path
                     ArtifactData callerNode = buildCallTree(invocation, currentPath);
 
                     callers.add(callerNode);
@@ -220,7 +220,7 @@ public class StackCallProcessor {
     private void extractAllPaths(ArtifactData treeNode, List<Map<String, Object>> currentPath,
             List<List<Map<String, Object>>> allPaths) {
 
-        // Agregar el nodo actual al path
+        // Add the current node to the path
         Map<String, Object> nodeInfo = new LinkedHashMap<>();
         nodeInfo.put("nodeType", treeNode.getNodeType());
         nodeInfo.put("artifactName", treeNode.getArtifactName());
@@ -242,10 +242,10 @@ public class StackCallProcessor {
         List<ArtifactData> callers = treeNode.getCallers();
 
         if (callers == null || callers.isEmpty()) {
-            // Es una hoja, agregar el path completo
+            // It's a leaf, add the full path
             allPaths.add(newPath);
         } else {
-            // Continuar recursivamente con cada caller
+            // Continue recursively with each caller
             for (ArtifactData caller : callers) {
                 extractAllPaths(caller, newPath, allPaths);
             }

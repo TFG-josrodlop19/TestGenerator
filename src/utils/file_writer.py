@@ -145,20 +145,3 @@ def generate_path_repo(owner:str, name:str) -> str:
     project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     repo_path = os.path.join(project_root, "OSS-Fuzz", "projects")
     return make_valid_file_path(folder_name, repo_path)
-
-
-def generate_test_info_path(owner:str, name:str) -> str:
-    folder_name = f"{owner}/{name}"
-    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-    info_path = os.path.join(project_root, "tests_info")
-    return make_valid_file_path(folder_name, info_path)
-
-def write_test_info_to_json(owner:str, name:str, info:dict):
-    info_path = generate_test_info_path(owner, name)
-    
-    os.makedirs(info_path, exist_ok=True)
-    
-    file_path = os.path.join(info_path, "tests_info.json")
-    
-    with open(file_path, "w") as f:
-        json.dump(info, f, indent=4)

@@ -42,7 +42,7 @@ public class ParamsProcessor {
                 paramInfo.put("typeAtDeclaration",
                         (declarationType != null) ? declarationType.getQualifiedName() : "UNRESOLVED_TYPE");
                 
-                // Extraer información recursiva de constructores
+                // Extract recursive constructor info
                 if (recursionDepth < MAX_RECURSION_DEPTH && declarationType != null) {
                     List<Map<String, Object>> constructorInfo = OutputDataBuilder.extractConstructorInfo(declarationType, recursionDepth + 1);
                     if (!constructorInfo.isEmpty()) {
@@ -53,7 +53,7 @@ public class ParamsProcessor {
                 paramInfo.put("possibleArray", "true");
             }
             
-            // También extraer constructores del tipo en la llamada si es diferente
+            // Also extract constructors of the type at call if different from declaration
             if (recursionDepth < MAX_RECURSION_DEPTH && paramType != null && 
                 !paramInfo.get("typeAtCall").equals(paramInfo.get("typeAtDeclaration"))) {
                 List<Map<String, Object>> callTypeConstructors = OutputDataBuilder.extractConstructorInfo(paramType, recursionDepth + 1);
@@ -77,13 +77,13 @@ public class ParamsProcessor {
         List<Map<String, Object>> paramsData = new ArrayList<>();
         
         try {
-            // Verificar el tipo de invocación
+            // Check the type of invocation
             if (invocation instanceof CtInvocation<?>) {
                 return extractParamsFromMethodReflection(arguments, (CtInvocation<?>) invocation, targetName, recursionDepth);
             } else if (invocation instanceof CtConstructorCall<?>) {
                 return extractParamsFromConstructorReflection(arguments, (CtConstructorCall<?>) invocation, targetName, recursionDepth);
             } else {
-                // Fallback para tipos no soportados
+                // Fallback for unsupported types
                 extractParamsFromReflectionFallback(arguments, paramsData, recursionDepth);
                 return paramsData;
             }
@@ -144,7 +144,7 @@ public class ParamsProcessor {
                         paramInfo.put("parameterName", reflectionParam.getName());
                         paramInfo.put("typeAtDeclaration", reflectionParam.getType().getName());
                         
-                        // Extraer información recursiva de constructores usando reflection
+                        // Extract recursive constructor info
                         if (recursionDepth < MAX_RECURSION_DEPTH) {
                             List<Map<String, Object>> constructorInfo = extractConstructorInfoFromClass(
                                 reflectionParam.getType(), recursionDepth + 1);
@@ -155,8 +155,8 @@ public class ParamsProcessor {
                     } else {
                         paramInfo.put("possibleArray", "true");
                     }
-                    
-                    // También extraer constructores del tipo en la llamada
+
+                    // Also extract constructors of the type at call
                     if (recursionDepth < MAX_RECURSION_DEPTH && paramType != null) {
                         try {
                             Class<?> callTypeClass = loadClassFromType(paramType, SpoonClassLoader.getInstance().getClassLoader());
@@ -166,7 +166,7 @@ public class ParamsProcessor {
                                 paramInfo.put("callTypeConstructors", callTypeConstructors.toString());
                             }
                         } catch (Exception e) {
-                            // Ignorar errores en la extracción de constructores del tipo de llamada
+                            // Ignore errors in extracting call type constructors
                         }
                     }
                     
@@ -226,7 +226,7 @@ public class ParamsProcessor {
                         paramInfo.put("parameterName", reflectionParam.getName());
                         paramInfo.put("typeAtDeclaration", reflectionParam.getType().getName());
                         
-                        // Extraer información recursiva de constructores
+                        // Extract recursive constructor info
                         if (recursionDepth < MAX_RECURSION_DEPTH) {
                             List<Map<String, Object>> constructorInfo = extractConstructorInfoFromClass(
                                 reflectionParam.getType(), recursionDepth + 1);
@@ -237,8 +237,8 @@ public class ParamsProcessor {
                     } else {
                         paramInfo.put("possibleArray", "true");
                     }
-                    
-                    // También extraer constructores del tipo en la llamada
+
+                    // Also extract constructors of the type at call
                     if (recursionDepth < MAX_RECURSION_DEPTH && paramType != null) {
                         try {
                             Class<?> callTypeClass = loadClassFromType(paramType, SpoonClassLoader.getInstance().getClassLoader());
@@ -248,7 +248,7 @@ public class ParamsProcessor {
                                 paramInfo.put("callTypeConstructors", callTypeConstructors.toString());
                             }
                         } catch (Exception e) {
-                            // Ignorar errores en la extracción de constructores del tipo de llamada
+                            // Ignore errors in extracting call type constructors
                         }
                     }
                     
@@ -275,7 +275,7 @@ public class ParamsProcessor {
             paramInfo.put("typeAtDeclaration", "UNRESOLVED_TYPE");
             paramInfo.put("parameterName", "param" + i);
             
-            // Intentar extraer constructores incluso en el fallback
+            // Try to extract constructors of the type at call
             if (recursionDepth < MAX_RECURSION_DEPTH && paramType != null) {
                 List<Map<String, Object>> constructorInfo = OutputDataBuilder.extractConstructorInfo(paramType, recursionDepth + 1);
                 if (!constructorInfo.isEmpty()) {
@@ -287,9 +287,6 @@ public class ParamsProcessor {
         }
     }
     
-    /**
-     * Extrae información de constructores de una clase usando reflection
-     */
     private static List<Map<String, Object>> extractConstructorInfoFromClass(Class<?> clazz, int recursionDepth) {
         List<Map<String, Object>> constructorsInfo = new ArrayList<>();
         
@@ -306,7 +303,7 @@ public class ParamsProcessor {
                 constructorInfo.put("qualifierType", clazz.getName());
                 constructorInfo.put("isPublic", java.lang.reflect.Modifier.isPublic(constructor.getModifiers()));
                 
-                // Información detallada de parámetros
+                // Params details
                 List<Map<String, Object>> paramDetails = new ArrayList<>();
                 Parameter[] params = constructor.getParameters();
                 
@@ -315,7 +312,7 @@ public class ParamsProcessor {
                     paramInfo.put("name", param.getName());
                     paramInfo.put("type", param.getType().getName());
                     
-                    // Recursión: obtener constructores de los parámetros
+                    // Recursive extraction of constructor info for parameter types
                     if (!isPrimitiveOrBasicType(param.getType().getName())) {
                         List<Map<String, Object>> nestedConstructors = extractConstructorInfoFromClass(
                             param.getType(), recursionDepth + 1);
@@ -337,13 +334,13 @@ public class ParamsProcessor {
         return constructorsInfo;
     }
 
-    // Método auxiliar para encontrar un constructor que coincida
+    // Auxiliary methods for reflection and type matching
     private static Constructor<?> findMatchingConstructor(Class<?> clazz, Class<?>[] argTypes) {
         try {
-            // Primero intentar match exacto
+            // First try to find an exact match
             return clazz.getConstructor(argTypes);
         } catch (NoSuchMethodException e) {
-            // Si no hay match exacto, buscar uno compatible
+            // If no exact match, look for a compatible one
             Constructor<?>[] constructors = clazz.getConstructors();
             for (Constructor<?> constructor : constructors) {
                 Class<?>[] paramTypes = constructor.getParameterTypes();
@@ -438,10 +435,7 @@ public class ParamsProcessor {
                 (primitive == byte.class && wrapper == Byte.class) ||
                 (primitive == short.class && wrapper == Short.class);
     }
-    
-    /**
-     * Verifica si un tipo es primitivo o un tipo básico de Java que no necesita análisis recursivo
-     */
+
     private static boolean isPrimitiveOrBasicType(String typeName) {
         return typeName.equals("int") || typeName.equals("long") || typeName.equals("double") || 
                typeName.equals("float") || typeName.equals("boolean") || typeName.equals("char") ||
