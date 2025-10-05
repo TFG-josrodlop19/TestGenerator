@@ -380,7 +380,7 @@ def get_pretty_test_status(status: TestStatus) -> str:
     elif status == TestStatus.NOT_VULNERABLE:
         pretty_status = Text("Not vulnerable", style="bold green")
     elif status in [TestStatus.ERROR_BUILDING, TestStatus.ERROR_EXECUTING, TestStatus.ERROR_GENERATING]:
-        pretty_status = Text(f"{status}", style="yellow")
+        pretty_status = Text(f"{status.value}", style="yellow")
     else:
         pretty_status = Text("Created", style="bold blue")
     return pretty_status

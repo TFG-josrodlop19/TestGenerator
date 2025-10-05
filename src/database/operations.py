@@ -318,19 +318,25 @@ def update_states_after_execution(owner: str, name: str):
                 if not artifact.fuzzers or len(artifact.fuzzers) == 0:
                     continue  # Skip artifacts without fuzzers
                 
-                vulnerability_has_artifacts_with_fuzzers = True
-                
                 # Check if any fuzzer is vulnerable
                 has_vulnerable_fuzzer = any(
                     fuzzer.status == TestStatus.VULNERABLE 
+                    for fuzzer in artifact.fuzzers
+                )
+                tested = any(
+                    fuzzer.status in [TestStatus.VULNERABLE, TestStatus.NOT_VULNERABLE]
                     for fuzzer in artifact.fuzzers
                 )
                 
                 if has_vulnerable_fuzzer:
                     artifact.affected = VulnerabilityStatus.AFFECTED
                     vulnerability_affected = True
-                else:
+                    vulnerability_has_artifacts_with_fuzzers = True
+                elif tested:
                     artifact.affected = VulnerabilityStatus.NOT_AFFECTED
+                    vulnerability_has_artifacts_with_fuzzers = True
+                else:
+                    artifact.affected = VulnerabilityStatus.UNKNOWN
                 
                 session.add(artifact)
             
