@@ -4,16 +4,74 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from utils.file_writer import generate_path_repo
-from utils.classes import TestStatus
-from database.operations import get_created_fuzzers_by_project, update_fuzzer_status, get_last_scanner_all_data_by_project, get_last_scanner_data_by_project, get_scanner_by_id, get_scanner_all_data_by_id
-from database.models import Fuzzer, ConfidenceLevel, VulnerabilityStatus
+from java_analyzer.spoon_reader import get_artifact_info
+from utils.file_writer import generate_path_repo, resolve_path
+from utils.git_utils import clone_repo
+from database.operations import create_project, get_created_fuzzers_by_project, create_vulnerabilities_artifacts, update_fuzzer_status, get_last_scanner_all_data_by_project, get_last_scanner_data_by_project, get_scanner_by_id, get_scanner_all_data_by_id
+from database.models import Fuzzer, ConfidenceLevel, VulnerabilityStatus, TestStatus
+from vexgen_caller.vex_generator import generate_vex, get_tix_data
+from test_generator.generator import generate_fuzzers, generate_fuzzer_for_failed_artifacts
 import re
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich.align import Align
 from rich.text import Text
+
+
+def generate_fuzz_tests(owner: str, name: str, pom_path: str, confidence: ConfidenceLevel=ConfidenceLevel.MEDIUM, reload: bool = True):
+    # Path for cloning the repository inside OSS-Fuzz/projects
+    dest_path = Path(generate_path_repo(owner, name))
+    clone_repo(owner, name, dest_path)
+    
+    print(f"Cloned repository to: {dest_path}")
+
+    resolved_pom_path = resolve_path(pom_path, dest_path)
+
+        
+    # Verify that the pom.xml file exists
+    if not resolved_pom_path.exists():
+        raise FileNotFoundError(f"Error: POM file not found at {resolved_pom_path}")
+
+    # Initialize the project in the database with a new scanner
+    project = create_project(owner, name, pom_path, confidence)
+    
+    vulnerabilities = None
+    if not reload:
+        try:
+            vulnerabilities, artifacts_json = get_tix_data(owner, name)
+            print(f"Using existing TIX file")
+        except FileNotFoundError:
+            print(f"TIX file not found, generating a new one...")
+            generate_vex(owner, name)
+            vulnerabilities, artifacts_json = get_tix_data(owner, name)
+    else:
+        generate_vex(owner, name)
+        vulnerabilities, artifacts_json = get_tix_data(owner, name)
+
+    if not vulnerabilities or len(vulnerabilities) == 0:
+        print("No vulnerabilities found in the TIX file.")
+        return
+
+    create_vulnerabilities_artifacts(project.id, vulnerabilities)
+    
+    # Generate artifacts info with Spoon
+    artifacts_data = None
+    if artifacts_json and artifacts_json != "[]":
+        artifacts_data = get_artifact_info(str(resolved_pom_path), artifacts_json)
+    else:
+        print("No artifacts found in the VEX file.")
+        return
+    
+    if artifacts_data:
+        generate_fuzzers(owner, name, artifacts_data)
+        generate_fuzzer_for_failed_artifacts(owner, name)
+        print("Test generation completed.")
+        print(f"Test saved in: {dest_path}")
+        return True
+    else:
+        print("No artifacts data extracted.")
+        return False
 
 def build_tests(owner: str, name: str):
     """
@@ -22,7 +80,7 @@ def build_tests(owner: str, name: str):
     fuzzers = get_created_fuzzers_by_project(owner, name)
     
     if fuzzers is None or fuzzers == []:
-        raise ValueError(f"No test info generated for {owner}/{name}")
+        raise FileNotFoundError(f"No tests generated for {owner}/{name}")
     repo_path = generate_path_repo(owner, name)
     if not os.path.exists(repo_path):
         raise FileNotFoundError(f"Repository path does not exist: {repo_path}")
@@ -92,10 +150,10 @@ def execute_tests(owner: str, name: str, confidence: ConfidenceLevel):
     project = Path(repo_path).name
     confidence = confidence.get_timeout_seconds()
     
-    # Directorio donde OSS-Fuzz guarda los binarios compilados
+    # Path to the OSS-Fuzz root directory
     oss_fuzz_root = Path(repo_path).parent.parent
-    
-    # Obtener información de tests generados
+
+    # Get information about generated tests
     try:
         fuzzers = get_created_fuzzers_by_project(owner, name)
     except FileNotFoundError:
