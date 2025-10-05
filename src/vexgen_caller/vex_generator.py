@@ -91,7 +91,7 @@ def generate_vex(owner:str, name:str):
         else:
             raise ValueError("Response does not contain a valid VEX file: " + response.json().get('message', 'Unknown error'))
     except requests.RequestException as e:
-        print(f"Error generating TIX: {response.json().get('detail', 'Unknown error')}")
+        raise requests.HTTPError(f"Error generating TIX: {response.json().get('detail', 'Unknown error')}")
 
 
 def get_tix_data(owner:str, name:str) -> (tuple[list[Vulnerability], str]):
