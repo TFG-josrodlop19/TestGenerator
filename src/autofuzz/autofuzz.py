@@ -278,7 +278,8 @@ def print_tests_results(owner: str, name: str, get_all: bool = False, scanner_id
         show_lines=True
     )
     vulnerabilities.add_column("Vulnerability")
-    # vulnerabilities.add_column("CWEs")
+    vulnerabilities.add_column("Impact")
+    vulnerabilities.add_column("Attack vector")
     vulnerabilities.add_column("Status")
     vulnerabilities.add_column("Affected artifacts")
     
@@ -286,14 +287,11 @@ def print_tests_results(owner: str, name: str, get_all: bool = False, scanner_id
         # Accumulate artifacts in set for later use
         for artifact in vulnerability.artifacts:
             artifacts.add(artifact)
-
-        # Get CWEs as a string
-        # cwe_list = [str(cwe.cwe_id) for cwe in vulnerability.cwes]
-        # cwe_str = "\n".join(cwe_list) if cwe_list else "N/A"
-        
+            
         vulnerabilities.add_row(
             vulnerability.name,
-            # cwe_str,
+            str(vulnerability.impact),
+            vulnerability.attackVector,
             get_pretty_vulnerability_status(vulnerability.status),
             get_pretty_artifacts_names(vulnerability.artifacts)
         )
