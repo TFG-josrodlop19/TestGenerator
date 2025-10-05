@@ -204,8 +204,7 @@ public class OutputDataBuilder {
             argInfo.put("value", arg.toString());
             argInfo.put("type", arg.getType() != null ? arg.getType().getQualifiedName() : "Unknown");
 
-            // Extraer información recursiva de constructores si no hemos alcanzado la
-            // profundidad máxima
+            // Extract constructor info recursively
             if (recursionDepth < MAX_RECURSION_DEPTH && arg.getType() != null) {
                 List<Map<String, Object>> constructorInfo = extractConstructorInfo(arg.getType(), recursionDepth + 1);
                 if (!constructorInfo.isEmpty()) {
@@ -225,14 +224,14 @@ public class OutputDataBuilder {
             return constructorsInfo;
         }
 
-        // Evitar tipos primitivos y tipos básicos de Java
+        // Avoid analyzing primitive or basic types
         String typeName = typeRef.getQualifiedName();
         if (isPrimitiveOrBasicType(typeName)) {
             return constructorsInfo;
         }
 
         try {
-            // Intentar obtener la declaración del tipo
+            // Try to get constructors from Spoon model first
             if (typeRef.getTypeDeclaration() != null) {
                 // Usar getElements() con filtro para obtener constructores
                 List<CtConstructor<?>> constructors = typeRef.getTypeDeclaration()
@@ -244,7 +243,7 @@ public class OutputDataBuilder {
                         constructorInfo.put("qualifiedName", typeName);
                         constructorInfo.put("isPublic", constructor.isPublic());
 
-                        // Información detallada de parámetros
+                        // Params details
                         List<Map<String, Object>> paramDetails = new ArrayList<>();
                         for (CtParameter<?> param : constructor.getParameters()) {
                             Map<String, Object> paramInfo = new LinkedHashMap<>();
@@ -252,7 +251,7 @@ public class OutputDataBuilder {
                             paramInfo.put("type",
                                     param.getType() != null ? param.getType().getQualifiedName() : "Unknown");
 
-                            // Recursión: obtener constructores de los parámetros
+                            // Get constructors of parameter types recursively
                             if (param.getType() != null
                                     && !isPrimitiveOrBasicType(param.getType().getQualifiedName())) {
                                 List<Map<String, Object>> nestedConstructors = extractConstructorInfo(param.getType(),
@@ -269,25 +268,22 @@ public class OutputDataBuilder {
                         constructorsInfo.add(constructorInfo);
                     }
                 } else {
-                    // Fallback usando reflection si no hay constructores Spoon disponibles
+                    // Fallback using reflection if no Spoon constructors are available
                     constructorsInfo.addAll(extractConstructorInfoUsingReflection(typeName, recursionDepth));
                 }
             } else {
-                // Fallback usando reflection si no hay declaración Spoon disponible
+                // Fallback using reflection if no Spoon declaration is available
                 constructorsInfo.addAll(extractConstructorInfoUsingReflection(typeName, recursionDepth));
             }
         } catch (Exception e) {
             System.err.println("Error extracting constructor info for " + typeName + ": " + e.getMessage());
-            // Intentar con reflection como fallback
+            // Try with reflection as fallback
             constructorsInfo.addAll(extractConstructorInfoUsingReflection(typeName, recursionDepth));
         }
 
         return constructorsInfo;
     }
 
-    /**
-     * Extrae información de constructores usando reflection como fallback
-     */
     private static List<Map<String, Object>> extractConstructorInfoUsingReflection(String typeName,
             int recursionDepth) {
         List<Map<String, Object>> constructorsInfo = new ArrayList<>();
@@ -303,7 +299,7 @@ public class OutputDataBuilder {
                 constructorInfo.put("isPublic", java.lang.reflect.Modifier.isPublic(constructor.getModifiers()));
                 constructorInfo.put("parameterCount", constructor.getParameterCount());
 
-                // Información detallada de parámetros
+                // Params details
                 List<Map<String, Object>> paramDetails = new ArrayList<>();
                 java.lang.reflect.Parameter[] params = constructor.getParameters();
 
@@ -312,7 +308,7 @@ public class OutputDataBuilder {
                     paramInfo.put("name", param.getName());
                     paramInfo.put("type", param.getType().getName());
 
-                    // Recursión: obtener constructores de los parámetros
+                    // Get constructors of parameter types recursively
                     if (!isPrimitiveOrBasicType(param.getType().getName())) {
                         List<Map<String, Object>> nestedConstructors = extractConstructorInfoUsingReflection(
                                 param.getType().getName(), recursionDepth + 1);
@@ -334,10 +330,6 @@ public class OutputDataBuilder {
         return constructorsInfo;
     }
 
-    /**
-     * Verifica si un tipo es primitivo o un tipo básico de Java que no necesita
-     * análisis recursivo
-     */
     private static boolean isPrimitiveOrBasicType(String typeName) {
         return typeName.equals("int") || typeName.equals("long") || typeName.equals("double") ||
                 typeName.equals("float") || typeName.equals("boolean") || typeName.equals("char") ||
