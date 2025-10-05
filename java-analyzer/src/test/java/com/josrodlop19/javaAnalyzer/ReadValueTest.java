@@ -12,7 +12,6 @@ import org.junit.jupiter.api.Test;
 
 public class ReadValueTest {
     
-    // Variables de instancia para usar en tests (como tus currentUser, testBaby)
     private static ArtifactData artifactData;
     private static List<List<Map<String, Object>>> allCallPaths;
     
