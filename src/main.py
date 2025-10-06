@@ -44,7 +44,7 @@ def run(
     owner : str = typer.Argument(..., help="Owner of the GitHub repository where the sbom.json file is stored."),
     name : str = typer.Argument(..., help="Name of the GitHub repository where the sbom.json file is stored."),
     pom_path: str = typer.Argument(..., help="Path to the pom.xml file of the Maven project."),
-    reload: bool = typer.Option(True, "--no-reload", "-n", help="Force re-generation of the VEX file even if it already exists."),
+    reload: bool = typer.Option(True, "--no-reload", "-n", help="Do not re-generate TIX file if it already exists."),
     confidence: ConfidenceLevel = typer.Option(
         ConfidenceLevel.MEDIUM, 
         "--confidence", 
@@ -68,7 +68,7 @@ def generate(
     owner : str = typer.Argument(..., help="Owner of the GitHub repository where the sbom.json file is stored."),
     name : str = typer.Argument(..., help="Name of the GitHub repository where the sbom.json file is stored."),
     pom_path: str = typer.Argument(..., help="Path to the pom.xml file of the Maven project."),
-    reload: bool = typer.Option(True, "--reload", "-r", help="Force re-generation of the VEX file even if it already exists."),
+    reload: bool = typer.Option(True, "--no-reload", "-n", help="Do not re-generate TIX file if it already exists."),
     confidence: ConfidenceLevel = typer.Option(
         ConfidenceLevel.MEDIUM, 
         "--confidence", 
