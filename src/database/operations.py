@@ -133,7 +133,7 @@ def find_artifacts_with_no_fuzzers(owner: str, project_name: str):
             artifact_fuzzer, Artifact.id == artifact_fuzzer.c.artifact_id
         ).filter(
             Vulnerability.scanner_id == last_scanner.id,
-            artifact_fuzzer.c.fuzzer_id.is_(None)  # 👈 CONDICIÓN CORRECTA
+            artifact_fuzzer.c.fuzzer_id.is_(None)
         ).all()
 
     return artifacts_with_no_fuzzers
