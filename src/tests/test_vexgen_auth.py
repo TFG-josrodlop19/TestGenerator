@@ -1,10 +1,8 @@
 import pytest
 import os
 import json
-from src.vexgen_caller.auth import login
+from vexgen_caller.auth import login
 
-def test_prueba():
-    assert True
     
 def test_login():
     login("test@example.com", "password")

@@ -2,8 +2,8 @@ import pytest
 import os
 
 import requests
-from src.database.models import VulnerabilityStatus
-from src.vexgen_caller.vex_generator import generate_vex, generate_download_path, get_tix_data
+from database.models import VulnerabilityStatus
+from vexgen_caller.vex_generator import generate_vex, generate_download_path, get_tix_data
 
 def test_generate_vex():
     generate_vex("TFG-josrodlop19", "VulnerableProject1")
@@ -30,10 +30,9 @@ def test_get_tix_data():
     assert artifacts.__contains__("target_name")
     
 def test_generate_vex_repository_not_exists(capsys):
-    generate_vex("ExampleOwner", "NonExistentRepo")
-    captured = capsys.readouterr()
-    assert "epository_not_found" in captured.out
-    
+    with pytest.raises(requests.HTTPError):
+        generate_vex("ExampleOwner", "NonExistentRepo")
+        
     
 def test_get_tix_data_no_file():
     with pytest.raises(FileNotFoundError):
