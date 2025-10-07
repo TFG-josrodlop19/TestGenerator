@@ -4,7 +4,7 @@ from sqlalchemy.orm import joinedload
 
 
 def find_last_scanner_confidence(owner: str, name: str):
-    """Buscar un proyecto específico"""
+    """Search for the confidence level of the last scanner for a given project"""
     with get_session() as session:
         project = session.query(Project).filter(
             Project.owner == owner,
