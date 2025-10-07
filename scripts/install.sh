@@ -39,6 +39,34 @@ print_status "Installing necessary packages..."
 apt update
 apt install -y python3 python3-venv git maven openjdk-17-jdk curl
 
+sudo apt-get update
+sudo apt-get install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the repository to Apt sources:
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt update
+
+# Install Docker Engine
+sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Enable and start Docker service
+systemctl enable docker
+systemctl start docker
+
+# Add user to docker group (so they don't need sudo for docker commands)
+if [ -n "$SUDO_USER" ]; then
+    usermod -aG docker $SUDO_USER
+    print_success "User $SUDO_USER added to docker group"
+fi
+
+print_success "Docker installed and configured successfully"
+
 
 # Define variables and paths
 PROJECT_DIR=$(pwd)
@@ -76,6 +104,21 @@ fi
 
 java_version=$(java -version 2>&1 | grep -o '".*"' | sed 's/"//g')
 print_success "Java found: $java_version" 
+
+# Validate Docker installation
+print_status "Validating Docker installation..."
+if ! command -v docker &> /dev/null; then
+    print_error "Docker not found. Installation may have failed."
+    exit 1
+fi
+
+if ! systemctl is-active --quiet docker; then
+    print_error "Docker service is not running."
+    exit 1
+fi
+
+docker_version=$(docker --version | cut -d' ' -f3 | cut -d',' -f1)
+print_success "Docker found and running: $docker_version" 
 
 # Setup OSS-Fuzz
 if [ ! -d "OSS-Fuzz" ]; then
@@ -143,6 +186,8 @@ echo ""
 echo "======================================"
 echo "🎉 Installation Summary:"
 echo "======================================"
+echo "✓ System packages installed"
+echo "✓ Docker installed and configured"
 echo "✓ Python virtual environment created"
 echo "✓ Python dependencies installed" 
 echo "✓ Java analyzer built successfully"
@@ -152,6 +197,9 @@ echo ""
 echo "Usage:"
 echo "  autofuzz --help               # Show help"
 echo "  autofuzz <project_path>       # Analyze a project"
+echo ""
+echo "⚠️  IMPORTANT: If you were added to the docker group,"
+echo "   please log out and log back in for changes to take effect."
 echo ""
 echo "Project directory: ${PROJECT_DIR}"
 echo "======================================"
