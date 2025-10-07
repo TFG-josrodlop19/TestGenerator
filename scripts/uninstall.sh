@@ -50,7 +50,7 @@ echo "System packages (python3, python3-venv, git, maven, openjdk-17-jdk, curl, 
 echo ""
 read -p "Are you sure you want to continue? (y/N): " confirm
 
-if [[ ! $confirm =~ ^[Yy]$ ]]; then
+if [[ ! $confirm =~ ^[Yy]([Ee][Ss])?$ ]]; then
     print_warning "Uninstallation cancelled by user."
     exit 0
 fi
