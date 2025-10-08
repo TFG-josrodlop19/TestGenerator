@@ -49,7 +49,7 @@ public class {{ className | default(qualifierType_simple_name) }}{{ artifactName
             // For example:
             // myClassInstance.targetMethod(input);
         } catch (Exception e) {
-            // Ignorar excepciones esperadas
+            // Catch all exceptions to prevent the fuzzer from stopping
         }
     }
 }
